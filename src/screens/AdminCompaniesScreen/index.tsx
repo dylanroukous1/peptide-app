@@ -445,8 +445,10 @@ export default function AdminCompaniesScreen() {
                   <CompanyCard key={row.id}>
                     <Stack
                       direction={{ xs: 'column', sm: 'row' }}
-                      justifyContent="space-between"
-                      alignItems={{ xs: 'flex-start', sm: 'center' }}
+                      sx={{
+                        justifyContent: 'space-between',
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                      }}
                       spacing={1.5}
                     >
                       <Box>
