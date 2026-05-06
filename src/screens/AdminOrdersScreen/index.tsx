@@ -330,7 +330,7 @@ export default function AdminOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Total Orders
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.totalOrders}
             </Typography>
           </StatCard>
@@ -339,7 +339,7 @@ export default function AdminOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Pending Review
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.pendingReview}
             </Typography>
           </StatCard>
@@ -348,7 +348,7 @@ export default function AdminOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Approved / In Production
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.approvedFlow}
             </Typography>
           </StatCard>
@@ -357,14 +357,14 @@ export default function AdminOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Revenue
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {money(stats.totalRevenue)}
             </Typography>
           </StatCard>
         </StatsGrid>
 
         <SectionCard>
-          <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
             Orders
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -401,7 +401,7 @@ export default function AdminOrdersScreen() {
 
           {filteredOrders.length === 0 ? (
             <EmptyWrap>
-              <Typography variant="h6" fontWeight={700}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 No matching orders found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -419,7 +419,7 @@ export default function AdminOrdersScreen() {
                     spacing={1.5}
                   >
                     <Box>
-                      <Typography variant="h6" fontWeight={800}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
                         {order.order_number}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -435,7 +435,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         User
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {order.user?.first_name || ''} {order.user?.last_name || ''}
                         {order.user?.email ? ` · ${order.user.email}` : ''}
                       </Typography>
@@ -445,7 +445,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         Batch Code
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {order.batch?.batch_code || '—'}
                       </Typography>
                     </Box>
@@ -454,7 +454,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         Quantity
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {Number(order.approved_quantity || order.requested_quantity || 0).toLocaleString()} units
                       </Typography>
                     </Box>
@@ -463,7 +463,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         Total Price
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {money(order.total_price)}
                       </Typography>
                     </Box>
@@ -472,7 +472,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         Submitted
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {formatDate(order.submitted_at)}
                       </Typography>
                     </Box>
@@ -481,7 +481,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         ETA
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {formatDate(
                           order.shipment?.estimated_delivery_date || order.batch?.eta_date
                         )}
@@ -492,7 +492,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         Tracking
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {order.shipment?.tracking_number || 'Pending'}
                       </Typography>
                     </Box>
@@ -501,7 +501,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         Carrier
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {order.shipment?.carrier_name || '—'}
                       </Typography>
                     </Box>
@@ -510,7 +510,7 @@ export default function AdminOrdersScreen() {
                       <Typography variant="caption" color="text.secondary">
                         Ship To
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {(order.address?.label || 'Address') +
                           (order.address?.line1 ? ` · ${order.address.line1}` : '') +
                           (order.address?.city ? `, ${order.address.city}` : '')}

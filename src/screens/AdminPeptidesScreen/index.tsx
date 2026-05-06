@@ -279,7 +279,7 @@ export default function AdminPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Total Peptides
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.total}
             </Typography>
           </StatCard>
@@ -288,7 +288,7 @@ export default function AdminPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Active
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.activeCount}
             </Typography>
           </StatCard>
@@ -297,7 +297,7 @@ export default function AdminPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Inactive
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.inactiveCount}
             </Typography>
           </StatCard>
@@ -306,7 +306,7 @@ export default function AdminPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Average Default Price
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {money(stats.avgPrice)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -317,7 +317,7 @@ export default function AdminPeptidesScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Create New Peptide
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -372,7 +372,7 @@ export default function AdminPeptidesScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Existing Peptides
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -381,7 +381,7 @@ export default function AdminPeptidesScreen() {
 
             {peptides.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No peptides found
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -399,7 +399,7 @@ export default function AdminPeptidesScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" fontWeight={800}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {row.name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -415,7 +415,7 @@ export default function AdminPeptidesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Created
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDate(row.created_at)}
                         </Typography>
                       </Box>
@@ -424,7 +424,7 @@ export default function AdminPeptidesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Current Default Price
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {money(row.default_unit_price)}
                         </Typography>
                       </Box>

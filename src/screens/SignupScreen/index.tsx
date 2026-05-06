@@ -122,7 +122,7 @@ export default function SignupScreen() {
 
             <Stack spacing={2}>
               <InfoTile>
-                <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>
                   What happens after signup
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -132,7 +132,7 @@ export default function SignupScreen() {
               </InfoTile>
 
               <InfoTile>
-                <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>
                   Approval required
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -146,7 +146,7 @@ export default function SignupScreen() {
         </WelcomePanel>
 
         <SignupCard>
-          <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
             Sign up
           </Typography>
 

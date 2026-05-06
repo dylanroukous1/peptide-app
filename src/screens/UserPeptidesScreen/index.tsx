@@ -150,7 +150,7 @@ export default function UserPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Active Peptides
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.activeCount}
             </Typography>
           </StatCard>
@@ -159,7 +159,7 @@ export default function UserPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Average Default Price
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {money(stats.avgPrice)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -171,7 +171,7 @@ export default function UserPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Highest Default Price
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {money(stats.highestPrice)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -181,7 +181,7 @@ export default function UserPeptidesScreen() {
         </StatsGrid>
 
         <SectionCard>
-          <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
             Available Peptides
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -190,7 +190,7 @@ export default function UserPeptidesScreen() {
 
           {peptides.length === 0 ? (
             <EmptyWrap>
-              <Typography variant="h6" fontWeight={700}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 No active peptides found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -212,13 +212,13 @@ export default function UserPeptidesScreen() {
                   {peptides.map((peptide) => (
                     <TableRow key={peptide.id} hover>
                       <TableCell>
-                        <Typography variant="body1" fontWeight={700}>
+                        <Typography variant="body1" sx={{ fontWeight: 700 }}>
                           {peptide.name}
                         </Typography>
                       </TableCell>
 
                       <TableCell>
-                        <Typography variant="body1" fontWeight={600}>
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
                           {money(peptide.default_unit_price)} / unit
                         </Typography>
                       </TableCell>

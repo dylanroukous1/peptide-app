@@ -300,7 +300,7 @@ export default function AdminCompaniesScreen() {
             <Typography variant="body2" color="text.secondary">
               Total Companies
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.total}
             </Typography>
           </StatCard>
@@ -309,7 +309,7 @@ export default function AdminCompaniesScreen() {
             <Typography variant="body2" color="text.secondary">
               Active
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.active}
             </Typography>
           </StatCard>
@@ -318,7 +318,7 @@ export default function AdminCompaniesScreen() {
             <Typography variant="body2" color="text.secondary">
               Inactive
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.inactive}
             </Typography>
           </StatCard>
@@ -327,7 +327,7 @@ export default function AdminCompaniesScreen() {
             <Typography variant="body2" color="text.secondary">
               With Billing Email
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.withBillingEmail}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -338,7 +338,7 @@ export default function AdminCompaniesScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Create New Company
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -423,7 +423,7 @@ export default function AdminCompaniesScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Existing Companies
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -432,7 +432,7 @@ export default function AdminCompaniesScreen() {
 
             {companies.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No companies found
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -450,7 +450,7 @@ export default function AdminCompaniesScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" fontWeight={800}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {row.name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -466,7 +466,7 @@ export default function AdminCompaniesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Billing Contact
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.billing_contact_name || '—'}
                         </Typography>
                       </Box>
@@ -475,7 +475,7 @@ export default function AdminCompaniesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Phone
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.phone || '—'}
                         </Typography>
                       </Box>
@@ -484,7 +484,7 @@ export default function AdminCompaniesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Created
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDate(row.created_at)}
                         </Typography>
                       </Box>
@@ -493,7 +493,7 @@ export default function AdminCompaniesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Notes
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.notes || '—'}
                         </Typography>
                       </Box>

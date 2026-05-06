@@ -142,7 +142,7 @@ export default function LoginScreen() {
 
             <Stack spacing={2}>
               <InfoTile>
-                <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>
                   What this app supports
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -152,7 +152,7 @@ export default function LoginScreen() {
               </InfoTile>
 
               <InfoTile>
-                <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>
                   Account status rules
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -164,13 +164,13 @@ export default function LoginScreen() {
             </Stack>
 
             <Box>
-              <Typography variant="subtitle1" fontWeight={700}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                 Demo credentials
               </Typography>
 
               <DemoCredentialsWrap>
                 <InfoTile>
-                  <Typography variant="body2" fontWeight={700}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
                     User
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -182,7 +182,7 @@ export default function LoginScreen() {
                 </InfoTile>
 
                 <InfoTile>
-                  <Typography variant="body2" fontWeight={700}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
                     Admin
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -198,7 +198,7 @@ export default function LoginScreen() {
         </WelcomePanel>
 
         <LoginCard>
-          <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
             Sign in
           </Typography>
 

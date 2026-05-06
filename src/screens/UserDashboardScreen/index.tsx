@@ -401,7 +401,7 @@ export default function UserDashboardScreen() {
             <Typography variant="body2" color="text.secondary">
               Active Batches
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.activeBatches}
             </Typography>
           </StatCard>
@@ -410,7 +410,7 @@ export default function UserDashboardScreen() {
             <Typography variant="body2" color="text.secondary">
               Remaining Inventory
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.remainingInventory.toLocaleString()}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -422,7 +422,7 @@ export default function UserDashboardScreen() {
             <Typography variant="body2" color="text.secondary">
               Saved Addresses
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.addressCount}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -434,7 +434,7 @@ export default function UserDashboardScreen() {
             <Typography variant="body2" color="text.secondary">
               Avg Starting Price
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {money(stats.averageStartingPrice)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -446,7 +446,7 @@ export default function UserDashboardScreen() {
         <SectionCard>
           <Stack spacing={2}>
             <Box>
-              <Typography variant="h5" fontWeight={800}>
+              <Typography variant="h5" sx={{ fontWeight: 800 }}>
                 Available Production Batches
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -456,7 +456,7 @@ export default function UserDashboardScreen() {
 
             {batches.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No open batches available
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -488,7 +488,7 @@ export default function UserDashboardScreen() {
                             flexWrap="wrap"
                             useFlexGap
                           >
-                            <Typography variant="h5" fontWeight={800}>
+                            <Typography variant="h5" sx={{ fontWeight: 800 }}>
                               {batch.peptide?.name || 'Peptide'}
                             </Typography>
                             <StatusChip status={batch.status} />
@@ -499,7 +499,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 Batch Code
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {batch.batch_code}
                               </Typography>
                             </Box>
@@ -508,7 +508,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 Batch Date
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {formatDate(batch.batch_date)}
                               </Typography>
                             </Box>
@@ -517,7 +517,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 Total Quantity
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {Number(batch.total_quantity).toLocaleString()} units
                               </Typography>
                             </Box>
@@ -526,7 +526,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 Reserved
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {Number(batch.reserved_quantity).toLocaleString()} units
                               </Typography>
                             </Box>
@@ -535,7 +535,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 Approved
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {Number(batch.approved_quantity).toLocaleString()} units
                               </Typography>
                             </Box>
@@ -544,7 +544,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 Remaining
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {remaining.toLocaleString()} units
                               </Typography>
                             </Box>
@@ -553,7 +553,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 MOQ
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {Number(batch.moq).toLocaleString()} units
                               </Typography>
                             </Box>
@@ -562,7 +562,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 Starting Price
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {money(batch.unit_price)} / unit
                               </Typography>
                             </Box>
@@ -571,7 +571,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 ETA
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {formatDate(batch.eta_date)}
                               </Typography>
                             </Box>
@@ -580,7 +580,7 @@ export default function UserDashboardScreen() {
                               <Typography variant="caption" color="text.secondary">
                                 Volume Pricing
                               </Typography>
-                              <Typography variant="body1" fontWeight={600}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                 {pricingTierLabel(batch)}
                               </Typography>
                             </Box>
@@ -594,7 +594,7 @@ export default function UserDashboardScreen() {
                         </Box>
 
                         <BatchFormCard>
-                          <Typography variant="subtitle1" fontWeight={800}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
                             Allocate Inventory
                           </Typography>
 
@@ -647,7 +647,7 @@ export default function UserDashboardScreen() {
                                   <Typography variant="body2" color="text.secondary">
                                     Total Quantity
                                   </Typography>
-                                  <Typography variant="body2" fontWeight={700}>
+                                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                     {requestedQuantity ? `${requestedQuantity} units` : '—'}
                                   </Typography>
                                 </Stack>
@@ -656,7 +656,7 @@ export default function UserDashboardScreen() {
                                   <Typography variant="body2" color="text.secondary">
                                     Applied Unit Price
                                   </Typography>
-                                  <Typography variant="body2" fontWeight={700}>
+                                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                     {requestedQuantity
                                       ? `${money(appliedUnitPrice)} / unit`
                                       : '—'}
@@ -667,7 +667,7 @@ export default function UserDashboardScreen() {
                                   <Typography variant="body2" color="text.secondary">
                                     Total Price
                                   </Typography>
-                                  <Typography variant="body2" fontWeight={700}>
+                                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                     {requestedQuantity ? money(totalPrice) : '—'}
                                   </Typography>
                                 </Stack>

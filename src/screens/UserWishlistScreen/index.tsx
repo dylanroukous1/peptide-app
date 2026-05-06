@@ -252,7 +252,7 @@ export default function UserWishlistScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Submit Wishlist Request
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -334,7 +334,7 @@ export default function UserWishlistScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               My Wishlist Requests
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -343,7 +343,7 @@ export default function UserWishlistScreen() {
 
             {requests.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No wishlist requests yet
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -361,7 +361,7 @@ export default function UserWishlistScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" fontWeight={800}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {request.peptide?.name || 'Peptide'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -377,7 +377,7 @@ export default function UserWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Desired Timeline
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {request.desired_timeline || '—'}
                         </Typography>
                       </Box>
@@ -386,7 +386,7 @@ export default function UserWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Submitted
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDate(request.created_at)}
                         </Typography>
                       </Box>
@@ -395,7 +395,7 @@ export default function UserWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Target Allocation
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {request.target_allocation
                             ? `${Number(request.target_allocation).toLocaleString()} units`
                             : '—'}
@@ -406,7 +406,7 @@ export default function UserWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Confirmed At
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDate(request.confirmed_at)}
                         </Typography>
                       </Box>

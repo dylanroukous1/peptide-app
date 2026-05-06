@@ -208,7 +208,7 @@ export default function AdminAuditScreen() {
             <Typography variant="body2" color="text.secondary">
               Audit Entries
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.auditCount}
             </Typography>
           </StatCard>
@@ -217,7 +217,7 @@ export default function AdminAuditScreen() {
             <Typography variant="body2" color="text.secondary">
               Email Events
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.emailCount}
             </Typography>
           </StatCard>
@@ -226,7 +226,7 @@ export default function AdminAuditScreen() {
             <Typography variant="body2" color="text.secondary">
               Create Actions
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.createActions}
             </Typography>
           </StatCard>
@@ -235,14 +235,14 @@ export default function AdminAuditScreen() {
             <Typography variant="body2" color="text.secondary">
               Update Actions
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.updateActions}
             </Typography>
           </StatCard>
         </StatsGrid>
 
         <SectionCard>
-          <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
             Search Activity
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -261,7 +261,7 @@ export default function AdminAuditScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Audit Logs
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -270,7 +270,7 @@ export default function AdminAuditScreen() {
 
             {filteredAuditLogs.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No audit entries found
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -282,7 +282,7 @@ export default function AdminAuditScreen() {
                 {filteredAuditLogs.map((row) => (
                   <LogCard key={row.id}>
                     <Stack spacing={0.5}>
-                      <Typography variant="h6" fontWeight={800}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
                         {row.action}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -295,7 +295,7 @@ export default function AdminAuditScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Actor User ID
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.actor_user_id || '—'}
                         </Typography>
                       </Box>
@@ -304,7 +304,7 @@ export default function AdminAuditScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Created At
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDateTime(row.created_at)}
                         </Typography>
                       </Box>
@@ -352,7 +352,7 @@ export default function AdminAuditScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Email Event Log
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -361,7 +361,7 @@ export default function AdminAuditScreen() {
 
             {filteredEmailEvents.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No email events found
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -373,7 +373,7 @@ export default function AdminAuditScreen() {
                 {filteredEmailEvents.map((row) => (
                   <LogCard key={row.id}>
                     <Stack spacing={0.5}>
-                      <Typography variant="h6" fontWeight={800}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
                         {row.type}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -386,7 +386,7 @@ export default function AdminAuditScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Recipient
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.to}
                         </Typography>
                       </Box>
@@ -395,7 +395,7 @@ export default function AdminAuditScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Order ID
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.order_id || '—'}
                         </Typography>
                       </Box>
@@ -404,7 +404,7 @@ export default function AdminAuditScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Created At
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDateTime(row.created_at)}
                         </Typography>
                       </Box>

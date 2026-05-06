@@ -491,7 +491,7 @@ export default function AdminBatchesScreen() {
             <Typography variant="body2" color="text.secondary">
               Total Batches
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.total}
             </Typography>
           </StatCard>
@@ -500,7 +500,7 @@ export default function AdminBatchesScreen() {
             <Typography variant="body2" color="text.secondary">
               Open Batches
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.activeBatches}
             </Typography>
           </StatCard>
@@ -509,7 +509,7 @@ export default function AdminBatchesScreen() {
             <Typography variant="body2" color="text.secondary">
               Archived
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.archivedBatches}
             </Typography>
           </StatCard>
@@ -518,7 +518,7 @@ export default function AdminBatchesScreen() {
             <Typography variant="body2" color="text.secondary">
               Remaining Inventory
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.remainingQuantity.toLocaleString()}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -529,7 +529,7 @@ export default function AdminBatchesScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Create New Batch
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -661,7 +661,7 @@ export default function AdminBatchesScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Existing Batches
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -670,7 +670,7 @@ export default function AdminBatchesScreen() {
 
             {batches.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No batches found
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -688,7 +688,7 @@ export default function AdminBatchesScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" fontWeight={800}>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {batch.peptide?.name || 'Peptide'} · {batch.batch_code}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -704,7 +704,7 @@ export default function AdminBatchesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Batch Date
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDate(batch.batch_date)}
                         </Typography>
                       </Box>
@@ -713,7 +713,7 @@ export default function AdminBatchesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           ETA
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDate(batch.eta_date)}
                         </Typography>
                       </Box>
@@ -722,7 +722,7 @@ export default function AdminBatchesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Total Quantity
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {Number(batch.total_quantity).toLocaleString()} units
                         </Typography>
                       </Box>
@@ -731,7 +731,7 @@ export default function AdminBatchesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Reserved
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {Number(batch.reserved_quantity).toLocaleString()} units
                         </Typography>
                       </Box>
@@ -740,7 +740,7 @@ export default function AdminBatchesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Approved
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {Number(batch.approved_quantity).toLocaleString()} units
                         </Typography>
                       </Box>
@@ -749,7 +749,7 @@ export default function AdminBatchesScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Starting Price
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {money(batch.unit_price)} / unit
                         </Typography>
                       </Box>

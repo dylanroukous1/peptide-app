@@ -415,7 +415,7 @@ export default function AdminWishlistScreen() {
             <Typography variant="body2" color="text.secondary">
               Open / Review Requests
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.openRequests}
             </Typography>
           </StatCard>
@@ -424,7 +424,7 @@ export default function AdminWishlistScreen() {
             <Typography variant="body2" color="text.secondary">
               Confirmed Requests
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.confirmedRequests}
             </Typography>
           </StatCard>
@@ -433,7 +433,7 @@ export default function AdminWishlistScreen() {
             <Typography variant="body2" color="text.secondary">
               Total Demand
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.totalDemand.toLocaleString()}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -445,7 +445,7 @@ export default function AdminWishlistScreen() {
             <Typography variant="body2" color="text.secondary">
               Peptides in Demand
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.trackedPeptides}
             </Typography>
           </StatCard>
@@ -453,7 +453,7 @@ export default function AdminWishlistScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Demand Summary by Peptide
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -462,7 +462,7 @@ export default function AdminWishlistScreen() {
 
             {summaryRows.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No wishlist demand found
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -480,7 +480,7 @@ export default function AdminWishlistScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" fontWeight={800}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {item.peptideName}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -499,7 +499,7 @@ export default function AdminWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Total Requested
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {item.totalRequested.toLocaleString()} units
                         </Typography>
                       </Box>
@@ -508,7 +508,7 @@ export default function AdminWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Target Allocation
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {item.targetAllocation
                             ? `${item.targetAllocation.toLocaleString()} units`
                             : '—'}
@@ -576,7 +576,7 @@ export default function AdminWishlistScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Individual Wishlist Requests
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -585,7 +585,7 @@ export default function AdminWishlistScreen() {
 
             {wishlistRows.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No requests submitted
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -603,7 +603,7 @@ export default function AdminWishlistScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" fontWeight={800}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {row.peptide?.name || 'Peptide'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -619,7 +619,7 @@ export default function AdminWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Requested Quantity
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {Number(row.requested_quantity || 0).toLocaleString()} units
                         </Typography>
                       </Box>
@@ -628,7 +628,7 @@ export default function AdminWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Desired Timeline
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.desired_timeline || '—'}
                         </Typography>
                       </Box>
@@ -637,7 +637,7 @@ export default function AdminWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Target Allocation
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.target_allocation
                             ? `${Number(row.target_allocation).toLocaleString()} units`
                             : '—'}
@@ -648,7 +648,7 @@ export default function AdminWishlistScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Submitted
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDate(row.created_at)}
                         </Typography>
                       </Box>

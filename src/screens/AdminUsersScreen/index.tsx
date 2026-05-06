@@ -267,7 +267,7 @@ export default function AdminUsersScreen() {
             <Typography variant="body2" color="text.secondary">
               Total Users
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.total}
             </Typography>
           </StatCard>
@@ -276,7 +276,7 @@ export default function AdminUsersScreen() {
             <Typography variant="body2" color="text.secondary">
               Active
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.active}
             </Typography>
           </StatCard>
@@ -285,7 +285,7 @@ export default function AdminUsersScreen() {
             <Typography variant="body2" color="text.secondary">
               Pending
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.pending}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -297,14 +297,14 @@ export default function AdminUsersScreen() {
             <Typography variant="body2" color="text.secondary">
               Admin Accounts
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.admins}
             </Typography>
           </StatCard>
         </StatsGrid>
 
         <SectionCard>
-          <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
             Existing Signed-Up Users
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -354,7 +354,7 @@ export default function AdminUsersScreen() {
 
           {filteredUsers.length === 0 ? (
             <EmptyWrap>
-              <Typography variant="h6" fontWeight={700}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 No matching users found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -375,7 +375,7 @@ export default function AdminUsersScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" fontWeight={800}>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {user.first_name} {user.last_name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -394,7 +394,7 @@ export default function AdminUsersScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Company
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {user.company?.name || (user.role === 'ADMIN' ? '—' : 'Unassigned')}
                         </Typography>
                       </Box>
@@ -403,7 +403,7 @@ export default function AdminUsersScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Role
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {user.role}
                         </Typography>
                       </Box>
@@ -412,7 +412,7 @@ export default function AdminUsersScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Account Status
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {user.account_status}
                         </Typography>
                       </Box>
@@ -421,7 +421,7 @@ export default function AdminUsersScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Created
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {formatDate(user.created_at)}
                         </Typography>
                       </Box>
@@ -430,7 +430,7 @@ export default function AdminUsersScreen() {
                         <Typography variant="caption" color="text.secondary">
                           Profile ID
                         </Typography>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {user.id}
                         </Typography>
                       </Box>

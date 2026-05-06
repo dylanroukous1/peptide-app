@@ -242,7 +242,7 @@ export default function UserAccountScreen() {
             <Typography variant="body2" color="text.secondary">
               Company
             </Typography>
-            <Typography variant="h5" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h5" sx={{ mt: 1, fontWeight: 800 }}>
               {company?.name || '—'}
             </Typography>
           </StatCard>
@@ -251,7 +251,7 @@ export default function UserAccountScreen() {
             <Typography variant="body2" color="text.secondary">
               Saved Addresses
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ mt: 1 }}>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.totalAddresses}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -271,7 +271,7 @@ export default function UserAccountScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Saved Shipping Addresses
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -280,7 +280,7 @@ export default function UserAccountScreen() {
 
             {addresses.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   No addresses saved yet
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -298,7 +298,7 @@ export default function UserAccountScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" fontWeight={800}>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {address.label || 'Address'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -326,7 +326,7 @@ export default function UserAccountScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
               Add Shipping Address
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
