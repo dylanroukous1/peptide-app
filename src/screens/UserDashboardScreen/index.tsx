@@ -484,9 +484,8 @@ export default function UserDashboardScreen() {
                           <Stack
                             direction="row"
                             spacing={1.25}
-                            alignItems="center"
-                            flexWrap="wrap"
                             useFlexGap
+                            sx={{ alignItems: 'center', flexWrap: 'wrap' }}
                           >
                             <Typography variant="h5" sx={{ fontWeight: 800 }}>
                               {batch.peptide?.name || 'Peptide'}

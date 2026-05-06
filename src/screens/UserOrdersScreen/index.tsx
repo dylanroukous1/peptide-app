@@ -330,8 +330,10 @@ export default function UserOrdersScreen() {
                   <MobileOrderCard key={order.id}>
                     <Stack
                       direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
+                      sx={{
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
                       spacing={1.5}
                     >
                       <Box>

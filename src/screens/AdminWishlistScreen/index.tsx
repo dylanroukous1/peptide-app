@@ -473,12 +473,14 @@ export default function AdminWishlistScreen() {
               <ListWrap>
                 {summaryRows.map((item) => (
                   <ListCard key={item.peptideId}>
-                    <Stack
-                      direction={{ xs: 'column', sm: 'row' }}
-                      justifyContent="space-between"
-                      alignItems={{ xs: 'flex-start', sm: 'center' }}
-                      spacing={1.5}
-                    >
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    sx={{
+                      justifyContent: 'space-between',
+                      alignItems: { xs: 'flex-start', sm: 'center' },
+                    }}
+                    spacing={1.5}
+                  >
                       <Box>
                       <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {item.peptideName}
@@ -596,12 +598,14 @@ export default function AdminWishlistScreen() {
               <ListWrap>
                 {wishlistRows.slice(0, 12).map((row) => (
                   <ListCard key={row.id}>
-                    <Stack
-                      direction={{ xs: 'column', sm: 'row' }}
-                      justifyContent="space-between"
-                      alignItems={{ xs: 'flex-start', sm: 'center' }}
-                      spacing={1.5}
-                    >
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    sx={{
+                      justifyContent: 'space-between',
+                      alignItems: { xs: 'flex-start', sm: 'center' },
+                    }}
+                    spacing={1.5}
+                  >
                       <Box>
                       <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {row.peptide?.name || 'Peptide'}

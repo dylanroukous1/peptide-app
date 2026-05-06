@@ -392,12 +392,14 @@ export default function AdminPeptidesScreen() {
               <ListWrap>
                 {peptides.map((row) => (
                   <PeptideCard key={row.id}>
-                    <Stack
-                      direction={{ xs: 'column', sm: 'row' }}
-                      justifyContent="space-between"
-                      alignItems={{ xs: 'flex-start', sm: 'center' }}
-                      spacing={1.5}
-                    >
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    sx={{
+                      justifyContent: 'space-between',
+                      alignItems: { xs: 'flex-start', sm: 'center' },
+                    }}
+                    spacing={1.5}
+                  >
                       <Box>
                       <Typography variant="h6" sx={{ fontWeight: 800 }}>
                           {row.name}
