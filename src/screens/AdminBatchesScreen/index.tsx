@@ -574,7 +574,7 @@ export default function AdminBatchesScreen() {
                 onChange={(e) =>
                   setNewBatch((prev) => ({ ...prev, batchDate: e.target.value }))
                 }
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
                 fullWidth
                 required
               />
@@ -586,7 +586,7 @@ export default function AdminBatchesScreen() {
                 onChange={(e) =>
                   setNewBatch((prev) => ({ ...prev, etaDate: e.target.value }))
                 }
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
                 fullWidth
               />
 
