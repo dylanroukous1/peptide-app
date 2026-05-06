@@ -95,7 +95,7 @@ export default function LoginScreen() {
   if (sessionLoading) {
     return (
       <PageRoot>
-        <Stack spacing={2} alignItems="center">
+        <Stack spacing={2} sx={{ alignItems: 'center' }}>
           <CircularProgress />
           <Typography variant="body1" color="text.secondary">
             Checking session...

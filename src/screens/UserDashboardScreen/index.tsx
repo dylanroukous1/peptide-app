@@ -361,7 +361,7 @@ export default function UserDashboardScreen() {
           backgroundColor: '#F8FAFC',
         }}
       >
-        <Stack spacing={2} alignItems="center">
+        <Stack spacing={2} sx={{ alignItems: 'center' }}>
           <CircularProgress />
           <Typography color="text.secondary">Loading dashboard...</Typography>
         </Stack>
@@ -643,7 +643,7 @@ export default function UserDashboardScreen() {
 
                             <SummaryBox>
                               <Stack spacing={1}>
-                                <Stack direction="row" justifyContent="space-between">
+                                <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                                   <Typography variant="body2" color="text.secondary">
                                     Total Quantity
                                   </Typography>
@@ -652,7 +652,7 @@ export default function UserDashboardScreen() {
                                   </Typography>
                                 </Stack>
 
-                                <Stack direction="row" justifyContent="space-between">
+                                <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                                   <Typography variant="body2" color="text.secondary">
                                     Applied Unit Price
                                   </Typography>
@@ -663,7 +663,7 @@ export default function UserDashboardScreen() {
                                   </Typography>
                                 </Stack>
 
-                                <Stack direction="row" justifyContent="space-between">
+                                <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                                   <Typography variant="body2" color="text.secondary">
                                     Total Price
                                   </Typography>

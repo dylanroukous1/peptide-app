@@ -252,7 +252,7 @@ export default function AdminPeptidesScreen() {
           backgroundColor: '#F8FAFC',
         }}
       >
-        <Stack spacing={2} alignItems="center">
+        <Stack spacing={2} sx={{ alignItems: 'center' }}>
           <CircularProgress />
           <Typography color="text.secondary">Loading peptides admin...</Typography>
         </Stack>
