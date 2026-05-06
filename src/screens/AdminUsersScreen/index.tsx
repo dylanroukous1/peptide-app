@@ -385,7 +385,7 @@ export default function AdminUsersScreen() {
                         </Typography>
                       </Box>
 
-                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                         <StatusChip status={user.role} label={user.role} />
                         <StatusChip status={user.account_status} />
                       </Stack>
