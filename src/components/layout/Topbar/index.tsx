@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { Button, CircularProgress, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Typography } from '@mui/material';
 import { supabase } from '@/src/supabase/client';
 import {
   ActionsWrap,
@@ -70,7 +70,10 @@ export default function Topbar({
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{ fontWeight: 500 }}
+            sx={{
+              fontWeight: 500,
+              display: { xs: 'none', sm: 'block' },
+            }}
           >
             {subtitle || 'Peptide Production Allocation Platform'}
           </Typography>
@@ -80,7 +83,7 @@ export default function Topbar({
             sx={{
               fontWeight: 700,
               lineHeight: 1.1,
-              fontSize: { xs: '1.35rem', md: '1.75rem' },
+              fontSize: { xs: '1.05rem', sm: '1.35rem', md: '1.75rem' },
             }}
           >
             {title}
@@ -102,7 +105,7 @@ export default function Topbar({
                 color="text.secondary"
                 sx={{
                   fontWeight: 700,
-                  display: { xs: 'none', sm: 'block' },
+                  display: { xs: 'none', md: 'block' },
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -123,10 +126,16 @@ export default function Topbar({
               borderRadius: 3,
               textTransform: 'none',
               fontWeight: 700,
-              minWidth: 110,
+              minWidth: { xs: 44, sm: 110 },
+              px: { xs: 1.25, sm: 2 },
+              '& .MuiButton-startIcon': {
+                marginRight: { xs: 0, sm: 1 },
+              },
             }}
           >
-            {loggingOut ? 'Logging out' : 'Logout'}
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+              {loggingOut ? 'Logging out' : 'Logout'}
+            </Box>
           </Button>
         </ActionsWrap>
       </TopbarToolbar>
