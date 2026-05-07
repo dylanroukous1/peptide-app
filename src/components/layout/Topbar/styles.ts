@@ -40,6 +40,46 @@ export const ActionsWrap = styled(Box)(({ theme }) => ({
   flexShrink: 0,
 }));
 
+export const UserChip = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  padding: theme.spacing(0.75, 1),
+  border: '1px solid #E2E8F0',
+  borderRadius: 999,
+  backgroundColor: '#FFFFFF',
+  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.04)',
+}));
+
+export const UserAvatar = styled(Box)(({ theme }) => ({
+  width: 34,
+  height: 34,
+  borderRadius: '50%',
+  display: 'grid',
+  placeItems: 'center',
+  background:
+    'linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(59, 130, 246, 0.88) 100%)',
+  color: '#FFFFFF',
+  fontWeight: 800,
+  fontSize: '0.8rem',
+  letterSpacing: 0.5,
+  flexShrink: 0,
+}));
+
+export const UserRoleBadge = styled(Box)(({ theme }) => ({
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: theme.spacing(0.35, 0.9),
+  borderRadius: 999,
+  backgroundColor: '#0F172A',
+  color: '#FFFFFF',
+  fontSize: '0.68rem',
+  fontWeight: 800,
+  letterSpacing: 0.8,
+  lineHeight: 1,
+}));
+
 export const MobileMenuButton = styled(IconButton)(({ theme }) => ({
   display: 'none',
   border: '1px solid #E2E8F0',

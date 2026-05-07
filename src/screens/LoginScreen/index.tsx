@@ -14,7 +14,6 @@ import { supabase } from '@/src/supabase/client';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import {
   ContentWrap,
-  DemoCredentialsWrap,
   InfoTile,
   LoginCard,
   LoginForm,
@@ -162,38 +161,6 @@ export default function LoginScreen() {
                 </Typography>
               </InfoTile>
             </Stack>
-
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                Demo credentials
-              </Typography>
-
-              <DemoCredentialsWrap>
-                <InfoTile>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    User
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    user@example.com
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    demo123
-                  </Typography>
-                </InfoTile>
-
-                <InfoTile>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    Admin
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    admin@example.com
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    demo123
-                  </Typography>
-                </InfoTile>
-              </DemoCredentialsWrap>
-            </Box>
           </Stack>
         </WelcomePanel>
 
@@ -247,11 +214,11 @@ export default function LoginScreen() {
               )}
             </Button>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-  Don&apos;t have an account?{' '}
-  <Link href="/sign-up" style={{ fontWeight: 700 }}>
-    Create one
-  </Link>
-</Typography>
+              Need access?{' '}
+              <Link href="/access-request" style={{ fontWeight: 700 }}>
+                Request an account
+              </Link>
+            </Typography>
           </LoginForm>
         </LoginCard>
       </ContentWrap>

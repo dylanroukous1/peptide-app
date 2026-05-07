@@ -3,6 +3,7 @@
 import { ReactNode, useState } from 'react';
 import Topbar from '@/src/components/layout/Topbar';
 import SideNav from '@/src/components/layout/SideNav';
+import { useSessionUser } from '@/src/hooks/useSessionUser';
 import {
   ContentWrap,
   MainContent,
@@ -31,6 +32,7 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { profile } = useSessionUser();
 
   const handleOpenMobileNav = () => {
     setMobileOpen(true);
@@ -60,6 +62,10 @@ export default function AppShell({
           <Topbar
             title={title}
             subtitle={subtitle}
+            userName={
+              profile ? `${profile.first_name} ${profile.last_name}`.trim() : undefined
+            }
+            userRole={profile?.role}
             onMenuClick={handleOpenMobileNav}
           />
           <MainContent>{children}</MainContent>

@@ -1,5 +1,5 @@
-import SignupScreen from '@/src/screens/SignupScreen';
+import { redirect } from 'next/navigation';
 
-export default function SignupPage() {
-  return <SignupScreen />;
+export default function SignUpPage() {
+  redirect('/access-request');
 }

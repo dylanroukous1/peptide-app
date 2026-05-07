@@ -36,7 +36,7 @@ export const WelcomePanel = styled(Card)(({ theme }) => ({
   },
 }));
 
-export const SignupCard = styled(Card)(({ theme }) => ({
+export const RequestCard = styled(Card)(({ theme }) => ({
   borderRadius: 28,
   padding: theme.spacing(4),
   border: '1px solid #E2E8F0',
@@ -47,7 +47,7 @@ export const SignupCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-export const SignupForm = styled('form')(({ theme }) => ({
+export const RequestForm = styled('form')(({ theme }) => ({
   display: 'grid',
   gap: theme.spacing(2),
   marginTop: theme.spacing(2),

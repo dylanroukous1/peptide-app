@@ -9,6 +9,9 @@ import { supabase } from '@/src/supabase/client';
 import {
   ActionsWrap,
   MobileMenuButton,
+  UserAvatar,
+  UserChip,
+  UserRoleBadge,
   TitleWrap,
   TopbarRoot,
   TopbarToolbar,
@@ -17,16 +20,34 @@ import {
 type TopbarProps = {
   title: string;
   subtitle?: string;
+  userName?: string;
+  userRole?: 'ADMIN' | 'USER';
   onMenuClick?: () => void;
 };
 
 export default function Topbar({
   title,
   subtitle,
+  userName,
+  userRole,
   onMenuClick,
 }: TopbarProps) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const seed = (userName || userRole || 'user').replace(/\s+/g, ' ').trim();
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  const hue = hash % 360;
+  const initials = userName
+    ? userName
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('')
+    : '';
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -67,6 +88,30 @@ export default function Topbar({
         </TitleWrap>
 
         <ActionsWrap>
+          {userName ? (
+            <UserChip>
+              <UserAvatar
+                sx={{
+                  background: `linear-gradient(135deg, hsl(${hue} 70% 28%) 0%, hsl(${(hue + 28) % 360} 78% 56%) 100%)`,
+                }}
+              >
+                {initials || 'U'}
+              </UserAvatar>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  fontWeight: 700,
+                  display: { xs: 'none', sm: 'block' },
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {userName}
+              </Typography>
+              {userRole === 'ADMIN' ? <UserRoleBadge>ADMIN</UserRoleBadge> : null}
+            </UserChip>
+          ) : null}
+
           <Button
             variant="outlined"
             onClick={handleLogout}
