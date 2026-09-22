@@ -1,5 +1,5 @@
-import LoginClient from "./LoginClient";
+import LoginScreen from "@/src/screens/LoginScreen";
 
 export default function LoginPage() {
-  return <LoginClient />;
+  return <LoginScreen />;
 }

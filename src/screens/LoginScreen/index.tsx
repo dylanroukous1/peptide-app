@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Alert,
@@ -24,6 +24,8 @@ import {
 } from './styles';
 import Link from 'next/link';
 
+const subscribeToClient = () => () => {};
+
 export default function LoginScreen() {
   const router = useRouter();
   const { profile, loading: sessionLoading, syncSession } = useSessionUser();
@@ -32,6 +34,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const mounted = useSyncExternalStore(subscribeToClient, () => true, () => false);
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -80,6 +83,15 @@ export default function LoginScreen() {
 
     router.replace(dbProfile.role === 'ADMIN' ? '/admin/orders' : '/dashboard');
   };
+
+  if (!mounted) {
+    return (
+      <main className="login-route-loading" role="status" aria-live="polite">
+        <span className="login-route-spinner" aria-hidden="true" />
+        <span>Loading Supplide…</span>
+      </main>
+    );
+  }
 
   if (sessionLoading) {
     return (

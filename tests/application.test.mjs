@@ -267,16 +267,15 @@ test('customer-facing and shared shell copy uses Supplide branding', () => {
   assert.doesNotMatch(brandedFiles, /Hola Peptides|Peptide Production Allocation Platform|Peptide Platform/i);
 });
 
-test('login uses a deterministic client-only boundary to prevent auth hydration mismatch', () => {
-  const loginClient = read('app/login/LoginClient.tsx');
+test('login uses deterministic fallback markup to prevent auth hydration mismatch', () => {
+  const login = read('src/screens/LoginScreen/index.tsx');
   const loginPage = read('app/login/page.tsx');
 
-  assert.match(loginClient, /'use client'/);
-  assert.match(loginClient, /dynamic\(\(\) => import\('@\/src\/screens\/LoginScreen'\)/);
-  assert.match(loginClient, /ssr: false/);
-  assert.match(loginClient, /Loading Supplide/);
-  assert.match(loginPage, /<LoginClient \/>/);
-  assert.doesNotMatch(loginPage, /LoginScreen/);
+  assert.match(login, /useSyncExternalStore\(subscribeToClient, \(\) => true, \(\) => false\)/);
+  assert.match(login, /if \(!mounted\)[\s\S]*login-route-loading/);
+  assert.match(login, /Loading Supplide/);
+  assert.match(loginPage, /<LoginScreen \/>/);
+  assert.doesNotMatch(loginPage, /LoginClient/);
 });
 
 test('peptide and company results use localized responsive scrolling', () => {
