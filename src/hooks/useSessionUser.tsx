@@ -31,6 +31,7 @@ type SessionContextValue = {
   profile: SessionProfile | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
+  syncSession: () => Promise<SessionProfile | null>;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -52,16 +53,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       profileRef.current = null;
       loadingUserIdRef.current = null;
       setLoading(false);
-      return;
+      return null;
     }
 
     if (
       !force &&
       (profileRef.current?.id === user.id || loadingUserIdRef.current === user.id)
     ) {
-      return;
+      return profileRef.current;
     }
 
+    setLoading(true);
     loadingUserIdRef.current = user.id;
 
     const { data, error } = await supabase
@@ -72,7 +74,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     if (currentUserRef.current?.id !== user.id) {
       if (loadingUserIdRef.current === user.id) loadingUserIdRef.current = null;
-      return;
+      return null;
     }
 
     if (error) {
@@ -86,10 +88,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     setLoading(false);
     loadingUserIdRef.current = null;
+    return error ? null : data;
   }, []);
 
   const refreshProfile = useCallback(async () => {
     await loadProfile(currentUserRef.current, true);
+  }, [loadProfile]);
+
+  const syncSession = useCallback(async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      setLoading(false);
+      return null;
+    }
+    return loadProfile(data.session?.user ?? null, true);
   }, [loadProfile]);
 
   useEffect(() => {
@@ -116,8 +128,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   const value = useMemo(
-    () => ({ authUser, profile, loading, refreshProfile }),
-    [authUser, loading, profile, refreshProfile]
+    () => ({ authUser, profile, loading, refreshProfile, syncSession }),
+    [authUser, loading, profile, refreshProfile, syncSession]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

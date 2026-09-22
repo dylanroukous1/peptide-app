@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  Snackbar,
   Stack,
   Typography,
 } from '@mui/material';
@@ -25,7 +26,7 @@ import Link from 'next/link';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { profile, loading: sessionLoading } = useSessionUser();
+  const { profile, loading: sessionLoading, syncSession } = useSessionUser();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -63,24 +64,8 @@ export default function LoginScreen() {
       return;
     }
 
-    const {
-      data: { user },
-      error: getUserError,
-    } = await supabase.auth.getUser();
-
-    if (getUserError || !user) {
-      setMessage('Login succeeded, but the session user could not be loaded.');
-      setSubmitting(false);
-      return;
-    }
-
-    const { data: dbProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, role, account_status')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !dbProfile) {
+    const dbProfile = await syncSession();
+    if (!dbProfile) {
       setMessage('Your account profile could not be found.');
       setSubmitting(false);
       return;
@@ -95,7 +80,6 @@ export default function LoginScreen() {
 
     router.replace(dbProfile.role === 'ADMIN' ? '/admin' : '/dashboard');
     router.refresh();
-    setSubmitting(false);
   };
 
   if (sessionLoading) {
@@ -236,6 +220,14 @@ export default function LoginScreen() {
           </LoginForm>
         </LoginCard>
       </ContentWrap>
+      <Snackbar
+        open={submitting}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="info" role="status" aria-live="polite" icon={<CircularProgress size={18} color="inherit" />}>
+          Signing you in…
+        </Alert>
+      </Snackbar>
     </PageRoot>
   );
 }

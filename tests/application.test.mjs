@@ -297,3 +297,16 @@ test('admin header chip uses Supplide branding without changing profile data', (
   assert.match(topbar, /const displayName = userRole === 'ADMIN' \? 'Supplide' : userName/);
   assert.match(topbar, /\{displayName\}/);
 });
+
+test('login synchronizes the shared profile before first navigation and announces progress', () => {
+  const sessionProvider = read('src/hooks/useSessionUser.tsx');
+  const login = read('src/screens/LoginScreen/index.tsx');
+
+  assert.match(sessionProvider, /syncSession: \(\) => Promise<SessionProfile \| null>/);
+  assert.match(sessionProvider, /setLoading\(true\)[\s\S]*loadingUserIdRef\.current = user\.id/);
+  assert.match(login, /const dbProfile = await syncSession\(\)/);
+  assert.doesNotMatch(login, /supabase\.auth\.getUser/);
+  assert.match(login, /open=\{submitting\}/);
+  assert.match(login, /Signing you in…/);
+  assert.match(login, /role="status"/);
+});
