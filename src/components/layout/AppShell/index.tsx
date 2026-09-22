@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { createContext, ReactNode, useContext, useState } from 'react';
 import Topbar from '@/src/components/layout/Topbar';
 import SideNav from '@/src/components/layout/SideNav';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
@@ -18,6 +18,8 @@ export type AppShellNavItem = {
   href: string;
 };
 
+const AppShellContext = createContext(false);
+
 type AppShellProps = {
   title: string;
   subtitle?: string;
@@ -31,8 +33,13 @@ export default function AppShell({
   navItems,
   children,
 }: AppShellProps) {
+  const alreadyMounted = useContext(AppShellContext);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { profile } = useSessionUser();
+
+  if (alreadyMounted) {
+    return <>{children}</>;
+  }
 
   const handleOpenMobileNav = () => {
     setMobileOpen(true);
@@ -43,34 +50,42 @@ export default function AppShell({
   };
 
   return (
-    <ShellRoot>
-      <ShellBody>
-        <SidebarDesktopWrap>
-          <SideNav navItems={navItems} />
-        </SidebarDesktopWrap>
+    <AppShellContext.Provider value>
+      <ShellRoot>
+        <ShellBody>
+          <SidebarDesktopWrap>
+            <SideNav navItems={navItems} id="desktop-navigation" />
+          </SidebarDesktopWrap>
 
-        <MobileDrawer
-          anchor="left"
-          open={mobileOpen}
-          onClose={handleCloseMobileNav}
-          ModalProps={{ keepMounted: true }}
-        >
-          <SideNav navItems={navItems} onNavigate={handleCloseMobileNav} />
-        </MobileDrawer>
+          <MobileDrawer
+            anchor="left"
+            open={mobileOpen}
+            onClose={handleCloseMobileNav}
+            ModalProps={{ keepMounted: true }}
+          >
+            <SideNav
+              navItems={navItems}
+              onNavigate={handleCloseMobileNav}
+              onClose={handleCloseMobileNav}
+              id="mobile-navigation"
+            />
+          </MobileDrawer>
 
-        <ContentWrap>
-          <Topbar
-            title={title}
-            subtitle={subtitle}
-            userName={
-              profile ? `${profile.first_name} ${profile.last_name}`.trim() : undefined
-            }
-            userRole={profile?.role}
-            onMenuClick={handleOpenMobileNav}
-          />
-          <MainContent>{children}</MainContent>
-        </ContentWrap>
-      </ShellBody>
-    </ShellRoot>
+          <ContentWrap>
+            <Topbar
+              title={title}
+              subtitle={subtitle}
+              userName={
+                profile ? `${profile.first_name} ${profile.last_name}`.trim() : undefined
+              }
+              userRole={profile?.role}
+              onMenuClick={handleOpenMobileNav}
+              mobileNavOpen={mobileOpen}
+            />
+            <MainContent>{children}</MainContent>
+          </ContentWrap>
+        </ShellBody>
+      </ShellRoot>
+    </AppShellContext.Provider>
   );
 }

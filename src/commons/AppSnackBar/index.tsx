@@ -20,21 +20,13 @@ export default function AppSnackbar({
       open={open}
       autoHideDuration={3500}
       onClose={onClose}
-      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      sx={{
-        '&.MuiSnackbar-root': {
-          top: '50%',
-          left: '50%',
-          right: 'auto',
-          bottom: 'auto',
-          transform: 'translate(-50%, -50%)',
-        },
-      }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
     >
       <Alert
         onClose={onClose}
         severity={severity}
         variant="filled"
+        role={severity === 'error' ? 'alert' : 'status'}
         sx={{
           width: '100%',
           minWidth: { xs: 280, sm: 360 },

@@ -9,14 +9,9 @@ type StatusColorKey =
   | 'fulfilled'
   | 'cancelled'
   | 'expired'
-  | 'open'
-  | 'closed'
-  | 'archived'
   | 'pending'
   | 'active'
-  | 'suspended'
-  | 'confirmed'
-  | 'converted';
+  | 'suspended';
 
 const statusColorMap: Record<StatusColorKey, { bg: string; color: string; border: string }> = {
   default: {
@@ -59,21 +54,6 @@ const statusColorMap: Record<StatusColorKey, { bg: string; color: string; border
     color: '#B45309',
     border: '#FDE68A',
   },
-  open: {
-    bg: '#ECFDF5',
-    color: '#047857',
-    border: '#A7F3D0',
-  },
-  closed: {
-    bg: '#F8FAFC',
-    color: '#475569',
-    border: '#CBD5E1',
-  },
-  archived: {
-    bg: '#F8FAFC',
-    color: '#475569',
-    border: '#CBD5E1',
-  },
   pending: {
     bg: '#FFF7ED',
     color: '#C2410C',
@@ -88,16 +68,6 @@ const statusColorMap: Record<StatusColorKey, { bg: string; color: string; border
     bg: '#FEF2F2',
     color: '#B91C1C',
     border: '#FECACA',
-  },
-  confirmed: {
-    bg: '#ECFDF5',
-    color: '#047857',
-    border: '#A7F3D0',
-  },
-  converted: {
-    bg: '#F0FDF4',
-    color: '#166534',
-    border: '#BBF7D0',
   },
 };
 

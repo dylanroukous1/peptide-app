@@ -1,5 +1,5 @@
-import AdminOverviewScreen from '@/src/screens/AdminOverviewScreen';
+import { redirect } from 'next/navigation';
 
 export default function AdminPage() {
-  return <AdminOverviewScreen />;
+  redirect('/admin/orders');
 }

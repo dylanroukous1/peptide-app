@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomInt } from 'node:crypto';
 import { createSupabaseAdminClient } from '@/src/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -8,7 +9,7 @@ function randomPassword(length = 16) {
   let output = '';
 
   for (let i = 0; i < length; i += 1) {
-    output += chars[Math.floor(Math.random() * chars.length)];
+    output += chars[randomInt(chars.length)];
   }
 
   return output;
@@ -36,6 +37,17 @@ export async function POST(req: Request) {
 
     if (!email || !firstName || !lastName) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
+    }
+
+    if (password && password.length < 12) {
+      return NextResponse.json(
+        { error: 'Passwords must contain at least 12 characters.' },
+        { status: 400 }
+      );
     }
 
     if (role === 'USER' && !companyId) {
@@ -85,18 +97,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: profileError } = await supabase.from('profiles').upsert(
-      {
-        id: authData.user.id,
-        email,
-        first_name: firstName,
-        last_name: lastName,
-        role,
-        account_status: accountStatus,
-        company_id: role === 'ADMIN' ? null : companyId,
-      },
-      { onConflict: 'id' }
-    );
+    const { data: createdProfile, error: profileError } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          id: authData.user.id,
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          role,
+          account_status: accountStatus,
+          company_id: role === 'ADMIN' ? null : companyId,
+        },
+        { onConflict: 'id' }
+      )
+      .select('id, email, first_name, last_name, role, account_status, company_id, created_at')
+      .single();
 
     if (profileError) {
       await supabase.auth.admin.deleteUser(authData.user.id);
@@ -107,8 +123,8 @@ export async function POST(req: Request) {
       ok: true,
       authUserId: authData.user.id,
       email,
-      password: finalPassword,
       generatedPassword: password ? null : finalPassword,
+      profile: createdProfile,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error';

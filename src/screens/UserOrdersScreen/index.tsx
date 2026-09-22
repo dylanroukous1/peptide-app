@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Alert,
   Box,
-  CircularProgress,
+  Button,
   Stack,
   Table,
   TableBody,
@@ -18,6 +18,9 @@ import AppShell from '@/src/components/layout/AppShell';
 import StatusChip from '@/src/commons/StatusChip';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
+import { userNavigation } from '@/src/config/navigation';
+import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import { singleRelation } from '@/src/lib/supabase/relations';
 import {
   DesktopTableWrap,
   EmptyWrap,
@@ -36,14 +39,11 @@ type OrderRow = {
   requested_quantity: number;
   approved_quantity: number | null;
   unit_price_at_submission: number;
-  unit_price_final: number | null;
   total_price: number;
   status: string;
-  submitted_at: string;
-  reviewed_at: string | null;
-  approved_at: string | null;
-  fulfilled_at: string | null;
-  cancelled_at: string | null;
+  peptide?: {
+    name: string;
+  } | null;
   batch?: {
     peptide?: {
       name: string;
@@ -57,14 +57,6 @@ type OrderRow = {
   } | null;
 };
 
-const userNavItems = [
-  { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Wishlist', href: '/wishlist' },
-  { label: 'Peptides', href: '/peptides' },
-  { label: 'My Orders', href: '/my-orders' },
-  { label: 'Account', href: '/account' },
-];
-
 function money(value: number | string | null | undefined) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -77,7 +69,7 @@ function formatDate(value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', { timeZone: 'UTC' });
 }
 
 export default function UserOrdersScreen() {
@@ -87,6 +79,7 @@ export default function UserOrdersScreen() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -113,14 +106,9 @@ export default function UserOrdersScreen() {
           requested_quantity,
           approved_quantity,
           unit_price_at_submission,
-          unit_price_final,
           total_price,
           status,
-          submitted_at,
-          reviewed_at,
-          approved_at,
-          fulfilled_at,
-          cancelled_at,
+          peptide:peptides(name),
           batch:batches(
             eta_date,
             peptide:peptides(name)
@@ -140,18 +128,24 @@ export default function UserOrdersScreen() {
         return;
       }
 
-      const normalized: OrderRow[] = (data || []).map((row: any) => ({
-        ...row,
-        batch: Array.isArray(row.batch) ? row.batch[0] : row.batch,
-        shipment: Array.isArray(row.shipment) ? row.shipment[0] : row.shipment,
-      }));
+      const normalized: OrderRow[] = (data || []).map((row) => {
+        const batch = singleRelation(row.batch);
+        return {
+          ...row,
+          peptide: singleRelation(row.peptide),
+          batch: batch
+            ? { ...batch, peptide: singleRelation(batch.peptide) }
+            : null,
+          shipment: singleRelation(row.shipment),
+        };
+      });
 
       setOrders(normalized);
       setLoading(false);
     };
 
     loadOrders();
-  }, [profile, router, sessionLoading]);
+  }, [profile, retryKey, router, sessionLoading]);
 
   const stats = useMemo(() => {
     const submittedCount = orders.filter((order) =>
@@ -178,21 +172,7 @@ export default function UserOrdersScreen() {
   }, [orders]);
 
   if (sessionLoading || loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          backgroundColor: '#F8FAFC',
-        }}
-      >
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <CircularProgress />
-          <Typography color="text.secondary">Loading orders...</Typography>
-        </Stack>
-      </Box>
-    );
+    return <PageSkeleton label="Loading order history" />;
   }
 
   if (!profile || profile.role !== 'USER' || profile.account_status !== 'ACTIVE') {
@@ -203,17 +183,21 @@ export default function UserOrdersScreen() {
     <AppShell
       title="My Orders"
       subtitle="Track submitted, approved, and fulfilled orders"
-      navItems={userNavItems}
+      navItems={userNavigation}
     >
       <Stack spacing={3}>
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+        {errorMessage ? (
+          <Alert severity="error" action={<Button color="inherit" onClick={() => setRetryKey((key) => key + 1)}>Retry</Button>}>
+            {errorMessage}
+          </Alert>
+        ) : null}
 
         <StatsGrid>
           <StatCard>
             <Typography variant="body2" color="text.secondary">
               Total Orders
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.totalOrders}
             </Typography>
           </StatCard>
@@ -222,7 +206,7 @@ export default function UserOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Pending Review
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.submittedCount}
             </Typography>
           </StatCard>
@@ -231,7 +215,7 @@ export default function UserOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Approved / In Flow
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.approvedCount}
             </Typography>
           </StatCard>
@@ -240,15 +224,15 @@ export default function UserOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Approved Spend
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {money(stats.totalSpend)}
             </Typography>
           </StatCard>
         </StatsGrid>
 
         <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-            Order History
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+            Order History · {orders.length} {orders.length === 1 ? 'order' : 'orders'}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Review your order lifecycle, tracking details, and estimated delivery timeline.
@@ -256,7 +240,7 @@ export default function UserOrdersScreen() {
 
           {orders.length === 0 ? (
             <EmptyWrap>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
                 No orders yet
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -266,13 +250,14 @@ export default function UserOrdersScreen() {
           ) : (
             <>
               <DesktopTableWrap>
-                <TableWrap>
+                <TableWrap className="record-results" role="region" aria-label="Order history table" tabIndex={0}>
                   <Table sx={{ minWidth: 980 }}>
                     <TableHead>
                       <TableRow>
                         <TableCell sx={{ fontWeight: 700 }}>Order #</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Peptide</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Qty</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Unit Price</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Total</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Tracking</TableCell>
@@ -290,12 +275,14 @@ export default function UserOrdersScreen() {
                           </TableCell>
 
                           <TableCell>
-                            {order.batch?.peptide?.name || '—'}
+                            {order.peptide?.name || order.batch?.peptide?.name || '—'}
                           </TableCell>
 
                           <TableCell>
-                            {Number(order.approved_quantity || order.requested_quantity || 0).toLocaleString()}
+                            {Number(order.approved_quantity || order.requested_quantity || 0).toLocaleString('en-US')}
                           </TableCell>
+
+                          <TableCell>{money(order.unit_price_at_submission)}</TableCell>
 
                           <TableCell>
                             <Typography variant="body1" sx={{ fontWeight: 600 }}>
@@ -337,11 +324,11 @@ export default function UserOrdersScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                        <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
                           {order.order_number}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {order.batch?.peptide?.name || '—'}
+                          {order.peptide?.name || order.batch?.peptide?.name || '—'}
                         </Typography>
                       </Box>
 
@@ -354,7 +341,16 @@ export default function UserOrdersScreen() {
                           Quantity
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {Number(order.approved_quantity || order.requested_quantity || 0).toLocaleString()}
+                          {Number(order.approved_quantity || order.requested_quantity || 0).toLocaleString('en-US')}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Unit Price
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {money(order.unit_price_at_submission)}
                         </Typography>
                       </Box>
 

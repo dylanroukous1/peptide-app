@@ -2,8 +2,7 @@ import { Box, Card, TextField, styled } from '@mui/material';
 
 export const PageRoot = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
-  background:
-    'linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 100%)',
+  backgroundColor: '#F1F5F9',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -26,22 +25,21 @@ export const ContentWrap = styled(Box)(({ theme }) => ({
 }));
 
 export const WelcomePanel = styled(Card)(({ theme }) => ({
-  borderRadius: 28,
+  borderRadius: 10,
   padding: theme.spacing(5),
   border: '1px solid #E2E8F0',
-  boxShadow: '0 20px 50px rgba(15, 23, 42, 0.08)',
-  background:
-    'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(241,245,249,0.98) 100%)',
+  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+  backgroundColor: '#F8FAFC',
   [theme.breakpoints.down('md')]: {
     padding: theme.spacing(3),
   },
 }));
 
 export const LoginCard = styled(Card)(({ theme }) => ({
-  borderRadius: 28,
+  borderRadius: 10,
   padding: theme.spacing(4),
   border: '1px solid #E2E8F0',
-  boxShadow: '0 20px 50px rgba(15, 23, 42, 0.08)',
+  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
   backgroundColor: '#FFFFFF',
   [theme.breakpoints.down('md')]: {
     padding: theme.spacing(3),
@@ -56,14 +54,13 @@ export const LoginForm = styled('form')(({ theme }) => ({
 
 export const StyledTextField = styled(TextField)(() => ({
   '& .MuiOutlinedInput-root': {
-    borderRadius: 16,
+    borderRadius: 10,
   },
 }));
 
 export const InfoTile = styled(Box)(({ theme }) => ({
   border: '1px solid #E2E8F0',
   backgroundColor: '#F8FAFC',
-  borderRadius: 20,
+  borderRadius: 12,
   padding: theme.spacing(2),
 }));
-

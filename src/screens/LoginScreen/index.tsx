@@ -27,8 +27,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const { profile, loading: sessionLoading } = useSessionUser();
 
-  const [email, setEmail] = useState('user@example.com');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -45,8 +45,15 @@ export default function LoginScreen() {
     setMessage('');
     setSubmitting(true);
 
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      setMessage('Enter your email and password.');
+      setSubmitting(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     });
 
@@ -114,10 +121,11 @@ export default function LoginScreen() {
                 variant="overline"
                 sx={{ letterSpacing: 2, color: 'text.secondary', fontWeight: 700 }}
               >
-                Peptide Production Allocation Platform
+                Supplide
               </Typography>
 
               <Typography
+                component="h1"
                 variant="h3"
                 sx={{
                   fontWeight: 800,
@@ -134,8 +142,8 @@ export default function LoginScreen() {
                 color="text.secondary"
                 sx={{ mt: 2, maxWidth: 560 }}
               >
-                Sign in with your Supabase account to access batches, orders,
-                wishlist demand, addresses, and admin operations.
+                Sign in to Supplide to access product pricing,
+                orders, shipping addresses, and administration tools.
               </Typography>
             </Box>
 
@@ -145,8 +153,8 @@ export default function LoginScreen() {
                   What this app supports
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Role-based access for admin and user accounts, protected company
-                  ordering flows, wishlist tracking, and production batch management.
+                  Role-based access for administrators and partners, protected company
+                  ordering flows, order tracking, and catalog management.
                 </Typography>
               </InfoTile>
 
@@ -165,7 +173,7 @@ export default function LoginScreen() {
         </WelcomePanel>
 
         <LoginCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
             Sign in
           </Typography>
 
@@ -180,6 +188,9 @@ export default function LoginScreen() {
               onChange={(e) => setEmail(e.target.value)}
               fullWidth
               autoComplete="email"
+              required
+              error={Boolean(message)}
+              aria-describedby={message ? 'login-error' : undefined}
             />
 
             <StyledTextField
@@ -189,9 +200,12 @@ export default function LoginScreen() {
               onChange={(e) => setPassword(e.target.value)}
               fullWidth
               autoComplete="current-password"
+              required
+              error={Boolean(message)}
+              aria-describedby={message ? 'login-error' : undefined}
             />
 
-            {message ? <Alert severity="error">{message}</Alert> : null}
+            {message ? <Alert id="login-error" severity="error">{message}</Alert> : null}
 
             <Button
               type="submit"

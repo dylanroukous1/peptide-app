@@ -1,28 +1,40 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
+  IconButton,
+  InputAdornment,
   MenuItem,
   Snackbar,
   Stack,
   Typography,
 } from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AppShell from '@/src/components/layout/AppShell';
 import StatusChip from '@/src/commons/StatusChip';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
+import { adminNavigation } from '@/src/config/navigation';
+import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import { singleRelation } from '@/src/lib/supabase/relations';
+import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   EditGrid,
+  CreateUserForm,
+  CreateUserGrid,
   EmptyWrap,
   FiltersGrid,
   HelperBox,
+  FormActions,
   ListWrap,
   MetaGrid,
+  PasswordFieldWrap,
   SectionCard,
   StatCard,
   StatsGrid,
@@ -74,22 +86,11 @@ type UserDraft = {
   company_id: string;
 };
 
-const adminNavItems = [
-  { label: 'Overview', href: '/admin' },
-  { label: 'Wishlist', href: '/admin/wishlist' },
-  { label: 'Orders', href: '/admin/orders' },
-  { label: 'Peptides', href: '/admin/peptides' },
-  { label: 'Batches', href: '/admin/batches' },
-  { label: 'Companies', href: '/admin/companies' },
-  { label: 'Users', href: '/admin/users' },
-  { label: 'Audit', href: '/admin/audit' },
-];
-
 function formatDate(value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', { timeZone: 'UTC' });
 }
 
 export default function AdminUsersScreen() {
@@ -102,12 +103,13 @@ export default function AdminUsersScreen() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useSessionStorageState('admin-user-filters', {
     search: '',
     status: 'ALL',
   });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [creatingUser, setCreatingUser] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastSeverity, setToastSeverity] = useState<'success' | 'error'>('success');
@@ -121,6 +123,9 @@ export default function AdminUsersScreen() {
     companyId: '',
     accountStatus: 'ACTIVE' as 'ACTIVE' | 'PENDING' | 'SUSPENDED',
   });
+  const emailRef = useRef<HTMLInputElement>(null);
+  const firstNameRef = useRef<HTMLInputElement>(null);
+  const lastNameRef = useRef<HTMLInputElement>(null);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -168,9 +173,9 @@ export default function AdminUsersScreen() {
       return;
     }
 
-    const normalizedProfiles: ProfileRow[] = (profileData || []).map((row: any) => ({
+    const normalizedProfiles: ProfileRow[] = (profileData || []).map((row) => ({
       ...row,
-      company: Array.isArray(row.company) ? row.company[0] : row.company,
+      company: singleRelation(row.company),
     }));
 
     const profileEmails = new Set(
@@ -211,7 +216,8 @@ export default function AdminUsersScreen() {
       return;
     }
 
-    loadUsers();
+    const timer = window.setTimeout(() => void loadUsers(), 0);
+    return () => window.clearTimeout(timer);
   }, [profile, router, sessionLoading]);
 
   const filteredUsers = useMemo(() => {
@@ -222,7 +228,7 @@ export default function AdminUsersScreen() {
         .join(' ')
         .toLowerCase();
 
-      return matchesStatus && haystack.includes(filters.search.toLowerCase());
+      return matchesStatus && haystack.includes(filters.search.trim().toLowerCase());
     });
   }, [filters.search, filters.status, users]);
 
@@ -269,8 +275,21 @@ export default function AdminUsersScreen() {
     }
 
     setMessage(`User ${user.email || user.id} saved successfully.`);
+    setUsers((current) =>
+      current.map((item) =>
+        item.id === user.id
+          ? {
+              ...item,
+              ...payload,
+              company:
+                payload.role === 'ADMIN'
+                  ? null
+                  : companies.find((company) => company.id === payload.company_id) || null,
+            }
+          : item
+      )
+    );
     setSavingUserId(null);
-    await loadUsers();
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -286,6 +305,20 @@ export default function AdminUsersScreen() {
 
     if (!email || !firstName || !lastName) {
       setErrorMessage('Email, first name, and last name are required.');
+      if (!email) emailRef.current?.focus();
+      else if (!firstName) firstNameRef.current?.focus();
+      else lastNameRef.current?.focus();
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrorMessage('Enter a valid email address.');
+      emailRef.current?.focus();
+      return;
+    }
+
+    if (password && password.length < 12) {
+      setErrorMessage('Passwords must contain at least 12 characters.');
       return;
     }
 
@@ -339,7 +372,7 @@ export default function AdminUsersScreen() {
       return;
     }
 
-    const finalPassword = payload.password || payload.generatedPassword;
+    const finalPassword = payload.generatedPassword;
     const successMessage = finalPassword
       ? `User created successfully. Share this email and password with the user: ${payload.email} / ${finalPassword}`
       : `User created successfully. Share this email with the user: ${payload.email}`;
@@ -357,11 +390,30 @@ export default function AdminUsersScreen() {
       companyId: '',
       accountStatus: 'ACTIVE',
     });
+    const createdProfile = payload.profile as Omit<ProfileRow, 'company'>;
+    const createdUser: ProfileRow = {
+      ...createdProfile,
+      company:
+        createdProfile.role === 'ADMIN'
+          ? null
+          : companies.find((company) => company.id === createdProfile.company_id) || null,
+    };
+    setUsers((current) => [createdUser, ...current]);
+    setDrafts((current) => ({
+      ...current,
+      [createdUser.id]: {
+        role: createdUser.role,
+        account_status: createdUser.account_status,
+        company_id: createdUser.company_id || '',
+      },
+    }));
+    setRequests((current) =>
+      current.filter((request) => request.email.trim().toLowerCase() !== email.toLowerCase())
+    );
     setCreatingUser(false);
-    await loadUsers();
   };
 
-  const useRequestForCreate = (request: AccountRequestRow) => {
+  const prefillCreateFromRequest = (request: AccountRequestRow) => {
     const matchedCompanyId =
       companies.find(
         (company) =>
@@ -382,21 +434,7 @@ export default function AdminUsersScreen() {
   };
 
   if (sessionLoading || loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          backgroundColor: '#F8FAFC',
-        }}
-      >
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <CircularProgress />
-          <Typography color="text.secondary">Loading users admin...</Typography>
-        </Stack>
-      </Box>
-    );
+    return <PageSkeleton label="Loading users and access requests" />;
   }
 
   if (!profile || profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') {
@@ -404,17 +442,21 @@ export default function AdminUsersScreen() {
   }
 
   return (
-    <AppShell title="User Management" subtitle="Create accounts, manage roles, and assign companies" navItems={adminNavItems}>
+    <AppShell title="User Management" subtitle="Create accounts, manage roles, and assign companies" navItems={adminNavigation}>
       <Stack spacing={3}>
         {message ? <Alert severity="success">{message}</Alert> : null}
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+        {errorMessage ? (
+          <Alert severity="error" action={<Button color="inherit" onClick={() => void loadUsers()}>Retry</Button>}>
+            {errorMessage}
+          </Alert>
+        ) : null}
 
         <StatsGrid>
           <StatCard>
             <Typography variant="body2" color="text.secondary">
               Total Users
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.total}
             </Typography>
           </StatCard>
@@ -422,7 +464,7 @@ export default function AdminUsersScreen() {
             <Typography variant="body2" color="text.secondary">
               Active
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.active}
             </Typography>
           </StatCard>
@@ -430,7 +472,7 @@ export default function AdminUsersScreen() {
             <Typography variant="body2" color="text.secondary">
               Pending
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.pending}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -441,14 +483,14 @@ export default function AdminUsersScreen() {
             <Typography variant="body2" color="text.secondary">
               Admin Accounts
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.admins}
             </Typography>
           </StatCard>
         </StatsGrid>
 
         <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
             Access Requests
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -457,12 +499,12 @@ export default function AdminUsersScreen() {
 
           {requests.length === 0 ? (
             <EmptyWrap>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
                 No access requests yet
               </Typography>
             </EmptyWrap>
           ) : (
-            <ListWrap>
+            <ListWrap className="record-results">
               {requests.map((request) => (
                 <UserCard key={request.id}>
                   <Stack
@@ -471,7 +513,7 @@ export default function AdminUsersScreen() {
                     spacing={1.5}
                   >
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
                         {request.first_name} {request.last_name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -538,7 +580,7 @@ export default function AdminUsersScreen() {
                   <Stack direction="row" spacing={1.5} sx={{ mt: 2, flexWrap: 'wrap' }}>
                     <Button
                       variant="outlined"
-                      onClick={() => useRequestForCreate(request)}
+                      onClick={() => prefillCreateFromRequest(request)}
                       sx={{ textTransform: 'none', fontWeight: 700 }}
                     >
                       Use for create form
@@ -551,18 +593,23 @@ export default function AdminUsersScreen() {
         </SectionCard>
 
         <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
             Create New User
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            This creates the Supabase Auth user and the matching profile row. Fill this form manually, or click
-            "Use for create form" on a request above to prefill it.
+            Create a user account and assign their role, status and company. You can also prefill
+            the form from an access request above.
           </Typography>
 
-          <EditGrid sx={{ gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 1fr 1fr' } }}>
+          <CreateUserForm onSubmit={handleCreateUser} noValidate>
+          <CreateUserGrid>
             <StyledTextField
+              id="create-user-email"
+              name="email"
               label="Email"
               type="email"
+              autoComplete="email"
+              inputRef={emailRef}
               value={createDraft.email}
               onChange={(e) =>
                 setCreateDraft((prev) => ({ ...prev, email: e.target.value }))
@@ -571,7 +618,11 @@ export default function AdminUsersScreen() {
               required
             />
             <StyledTextField
+              id="create-user-first-name"
+              name="firstName"
               label="First Name"
+              autoComplete="given-name"
+              inputRef={firstNameRef}
               value={createDraft.firstName}
               onChange={(e) =>
                 setCreateDraft((prev) => ({ ...prev, firstName: e.target.value }))
@@ -580,23 +631,17 @@ export default function AdminUsersScreen() {
               required
             />
             <StyledTextField
+              id="create-user-last-name"
+              name="lastName"
               label="Last Name"
+              autoComplete="family-name"
+              inputRef={lastNameRef}
               value={createDraft.lastName}
               onChange={(e) =>
                 setCreateDraft((prev) => ({ ...prev, lastName: e.target.value }))
               }
               fullWidth
               required
-            />
-            <StyledTextField
-              label="Password"
-              type="password"
-              value={createDraft.password}
-              onChange={(e) =>
-                setCreateDraft((prev) => ({ ...prev, password: e.target.value }))
-              }
-              fullWidth
-              helperText="Optional. Leave blank to generate a temporary password."
             />
             <StyledTextField
               select
@@ -647,10 +692,42 @@ export default function AdminUsersScreen() {
                 </MenuItem>
               ))}
             </StyledTextField>
-          </EditGrid>
+          </CreateUserGrid>
 
+          <PasswordFieldWrap>
+            <StyledTextField
+              id="create-user-password"
+              name="newPassword"
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={createDraft.password}
+              onChange={(e) =>
+                setCreateDraft((prev) => ({ ...prev, password: e.target.value }))
+              }
+              fullWidth
+              helperText="Optional. Leave blank to generate a temporary password."
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        edge="end"
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </PasswordFieldWrap>
+
+          <FormActions>
           <Button
-            type="button"
+            type="submit"
             variant="contained"
             size="large"
             disabled={creatingUser}
@@ -662,7 +739,6 @@ export default function AdminUsersScreen() {
               textTransform: 'none',
               fontWeight: 700,
             }}
-            fullWidth
           >
             {creatingUser ? (
               <CircularProgress size={20} color="inherit" />
@@ -670,6 +746,8 @@ export default function AdminUsersScreen() {
               'Create User'
             )}
           </Button>
+          </FormActions>
+          </CreateUserForm>
         </SectionCard>
 
         <Snackbar
@@ -689,8 +767,8 @@ export default function AdminUsersScreen() {
         </Snackbar>
 
         <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-            Existing Users
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+            Existing Users · {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Search, review company assignment, and update account status.
@@ -723,7 +801,7 @@ export default function AdminUsersScreen() {
 
           {filteredUsers.length === 0 ? (
             <EmptyWrap>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
                 No matching users found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -731,7 +809,7 @@ export default function AdminUsersScreen() {
               </Typography>
             </EmptyWrap>
           ) : (
-            <ListWrap>
+            <ListWrap className="record-results">
               {filteredUsers.map((user) => {
                 const draft = drafts[user.id];
 
@@ -739,7 +817,7 @@ export default function AdminUsersScreen() {
                   <UserCard key={user.id}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }} spacing={1.5}>
                       <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                        <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
                           {user.first_name} {user.last_name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">

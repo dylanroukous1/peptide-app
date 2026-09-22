@@ -42,6 +42,11 @@ export default function AccessRequestScreen() {
       return;
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
     setSubmitting(true);
     const { error } = await supabase.from('account_requests').insert({
       first_name: firstName.trim(),
@@ -74,9 +79,10 @@ export default function AccessRequestScreen() {
           <Stack spacing={3}>
             <Box>
               <Typography variant="overline" sx={{ letterSpacing: 2, color: 'text.secondary', fontWeight: 700 }}>
-                Peptide Production Allocation Platform
+                Supplide
               </Typography>
               <Typography
+                component="h1"
                 variant="h3"
                 sx={{ fontWeight: 800, mt: 1.5, lineHeight: 1.1, fontSize: { xs: '2rem', md: '3rem' } }}
               >
@@ -107,7 +113,7 @@ export default function AccessRequestScreen() {
           </Stack>
         </WelcomePanel>
         <RequestCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
             Access request
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -121,7 +127,7 @@ export default function AccessRequestScreen() {
             <StyledTextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth required />
             <StyledTextField label="Company Name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} fullWidth />
             <StyledTextField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} fullWidth multiline minRows={3} />
-            {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+            {errorMessage ? <Alert id="access-request-error" severity="error">{errorMessage}</Alert> : null}
             {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
             <Button type="submit" variant="contained" size="large" disabled={submitting} sx={{ mt: 1, minHeight: 52, borderRadius: 4, textTransform: 'none', fontWeight: 700 }} fullWidth>
               {submitting ? <CircularProgress size={22} color="inherit" /> : 'Submit Request'}

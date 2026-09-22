@@ -114,7 +114,7 @@ export const MobileMenuButton = styled(IconButton)(({ theme }) => ({
   border: '1px solid #E2E8F0',
   borderRadius: 14,
   backgroundColor: '#FFFFFF',
-  [theme.breakpoints.down('lg')]: {
+  [theme.breakpoints.down('md')]: {
     display: 'inline-flex',
   },
   [theme.breakpoints.down('sm')]: {

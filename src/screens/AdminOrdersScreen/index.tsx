@@ -15,6 +15,10 @@ import AppShell from '@/src/components/layout/AppShell';
 import StatusChip from '@/src/commons/StatusChip';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
+import { adminNavigation } from '@/src/config/navigation';
+import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import { singleRelation } from '@/src/lib/supabase/relations';
+import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   ActionsGrid,
   EmptyWrap,
@@ -34,17 +38,11 @@ type OrderRow = {
   requested_quantity: number;
   approved_quantity: number | null;
   unit_price_at_submission: number;
-  unit_price_final: number | null;
   total_price: number;
   status: string;
   user_notes: string | null;
-  internal_notes: string | null;
-  reservation_expires_at: string | null;
   submitted_at: string;
-  reviewed_at: string | null;
-  approved_at: string | null;
-  fulfilled_at: string | null;
-  cancelled_at: string | null;
+  peptide?: { name: string } | null;
   company?: { name: string } | null;
   user?: {
     first_name: string;
@@ -68,17 +66,6 @@ type OrderRow = {
   } | null;
 };
 
-const adminNavItems = [
-  { label: 'Overview', href: '/admin' },
-  { label: 'Wishlist', href: '/admin/wishlist' },
-  { label: 'Orders', href: '/admin/orders' },
-  { label: 'Peptides', href: '/admin/peptides' },
-  { label: 'Batches', href: '/admin/batches' },
-  { label: 'Companies', href: '/admin/companies' },
-  { label: 'Users', href: '/admin/users' },
-  { label: 'Audit', href: '/admin/audit' },
-];
-
 const statusOptions = [
   'SUBMITTED',
   'UNDER_REVIEW',
@@ -101,7 +88,7 @@ function formatDate(value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', { timeZone: 'UTC' });
 }
 
 export default function AdminOrdersScreen() {
@@ -112,7 +99,7 @@ export default function AdminOrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useSessionStorageState('admin-order-filters', {
     search: '',
     status: 'ALL',
   });
@@ -131,17 +118,11 @@ export default function AdminOrdersScreen() {
         requested_quantity,
         approved_quantity,
         unit_price_at_submission,
-        unit_price_final,
         total_price,
         status,
         user_notes,
-        internal_notes,
-        reservation_expires_at,
         submitted_at,
-        reviewed_at,
-        approved_at,
-        fulfilled_at,
-        cancelled_at,
+        peptide:peptides(name),
         company:companies(name),
         user:profiles(first_name, last_name, email),
         batch:batches(
@@ -160,14 +141,20 @@ export default function AdminOrdersScreen() {
       return;
     }
 
-    const normalized: OrderRow[] = (data || []).map((row: any) => ({
-      ...row,
-      company: Array.isArray(row.company) ? row.company[0] : row.company,
-      user: Array.isArray(row.user) ? row.user[0] : row.user,
-      batch: Array.isArray(row.batch) ? row.batch[0] : row.batch,
-      address: Array.isArray(row.address) ? row.address[0] : row.address,
-      shipment: Array.isArray(row.shipment) ? row.shipment[0] : row.shipment,
-    }));
+    const normalized: OrderRow[] = (data || []).map((row) => {
+      const batch = singleRelation(row.batch);
+      return {
+        ...row,
+        peptide: singleRelation(row.peptide),
+        company: singleRelation(row.company),
+        user: singleRelation(row.user),
+        batch: batch
+          ? { ...batch, peptide: singleRelation(batch.peptide) }
+          : null,
+        address: singleRelation(row.address),
+        shipment: singleRelation(row.shipment),
+      };
+    });
 
     setOrders(normalized);
 
@@ -193,7 +180,8 @@ export default function AdminOrdersScreen() {
       return;
     }
 
-    loadOrders();
+    const timer = window.setTimeout(() => void loadOrders(), 0);
+    return () => window.clearTimeout(timer);
   }, [profile, router, sessionLoading]);
 
   const filteredOrders = useMemo(() => {
@@ -204,14 +192,14 @@ export default function AdminOrdersScreen() {
       const haystack = [
         order.order_number,
         order.company?.name || '',
-        order.batch?.peptide?.name || '',
+        order.peptide?.name || order.batch?.peptide?.name || '',
         order.batch?.batch_code || '',
         order.user?.email || '',
       ]
         .join(' ')
         .toLowerCase();
 
-      const matchesSearch = haystack.includes(filters.search.toLowerCase());
+      const matchesSearch = haystack.includes(filters.search.trim().toLowerCase());
 
       return matchesStatus && matchesSearch;
     });
@@ -242,7 +230,14 @@ export default function AdminOrdersScreen() {
   }, [orders]);
 
   const handleUpdateStatus = async (order: OrderRow) => {
-    const nextStatus = statusDrafts[order.id];
+    const nextStatus = statusDrafts[order.id] as
+      | 'SUBMITTED'
+      | 'UNDER_REVIEW'
+      | 'APPROVED'
+      | 'IN_PRODUCTION'
+      | 'FULFILLED'
+      | 'CANCELLED'
+      | 'EXPIRED';
 
     if (!nextStatus || nextStatus === order.status) {
       setMessage('No status change to save.');
@@ -253,34 +248,10 @@ export default function AdminOrdersScreen() {
     setMessage('');
     setErrorMessage('');
 
-    const updatePayload: Record<string, any> = {
-      status: nextStatus,
-    };
-
-    if (nextStatus === 'UNDER_REVIEW') {
-      updatePayload.reviewed_at = new Date().toISOString();
-    }
-
-    if (nextStatus === 'APPROVED') {
-      updatePayload.reviewed_at = order.reviewed_at || new Date().toISOString();
-      updatePayload.approved_at = new Date().toISOString();
-      updatePayload.approved_quantity = order.requested_quantity;
-      updatePayload.unit_price_final =
-        order.unit_price_final || order.unit_price_at_submission;
-    }
-
-    if (nextStatus === 'FULFILLED') {
-      updatePayload.fulfilled_at = new Date().toISOString();
-    }
-
-    if (nextStatus === 'CANCELLED' || nextStatus === 'EXPIRED') {
-      updatePayload.cancelled_at = new Date().toISOString();
-    }
-
-    const { error } = await supabase
-      .from('orders')
-      .update(updatePayload)
-      .eq('id', order.id);
+    const { error } = await supabase.rpc('admin_update_order_status', {
+      p_order_id: order.id,
+      p_new_status: nextStatus,
+    });
 
     if (error) {
       setErrorMessage(error.message);
@@ -289,26 +260,16 @@ export default function AdminOrdersScreen() {
     }
 
     setMessage(`Order ${order.order_number} updated to ${nextStatus}.`);
+    setOrders((current) =>
+      current.map((item) =>
+        item.id === order.id ? { ...item, status: nextStatus } : item
+      )
+    );
     setSubmittingOrderId(null);
-    await loadOrders();
   };
 
   if (sessionLoading || loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          backgroundColor: '#F8FAFC',
-        }}
-      >
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <CircularProgress />
-          <Typography color="text.secondary">Loading orders admin...</Typography>
-        </Stack>
-      </Box>
-    );
+    return <PageSkeleton label="Loading orders" />;
   }
 
   if (!profile || profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') {
@@ -319,18 +280,22 @@ export default function AdminOrdersScreen() {
     <AppShell
       title="Order Management"
       subtitle="Review and update order status across all companies"
-      navItems={adminNavItems}
+      navItems={adminNavigation}
     >
       <Stack spacing={3}>
         {message ? <Alert severity="success">{message}</Alert> : null}
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+        {errorMessage ? (
+          <Alert severity="error" action={<Button color="inherit" onClick={() => void loadOrders()}>Retry</Button>}>
+            {errorMessage}
+          </Alert>
+        ) : null}
 
         <StatsGrid>
           <StatCard>
             <Typography variant="body2" color="text.secondary">
               Total Orders
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.totalOrders}
             </Typography>
           </StatCard>
@@ -339,7 +304,7 @@ export default function AdminOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Pending Review
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.pendingReview}
             </Typography>
           </StatCard>
@@ -348,7 +313,7 @@ export default function AdminOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Approved / In Production
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.approvedFlow}
             </Typography>
           </StatCard>
@@ -357,18 +322,18 @@ export default function AdminOrdersScreen() {
             <Typography variant="body2" color="text.secondary">
               Revenue
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {money(stats.totalRevenue)}
             </Typography>
           </StatCard>
         </StatsGrid>
 
         <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-            Orders
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+            Orders · {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Search by order, company, peptide, batch code, or user email, then update status.
+            Search by order, company, peptide, inventory reference, or user email, then update status.
           </Typography>
 
           <FiltersGrid>
@@ -401,7 +366,7 @@ export default function AdminOrdersScreen() {
 
           {filteredOrders.length === 0 ? (
             <EmptyWrap>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
                 No matching orders found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -409,7 +374,7 @@ export default function AdminOrdersScreen() {
               </Typography>
             </EmptyWrap>
           ) : (
-            <ListWrap>
+            <ListWrap className="record-results">
               {filteredOrders.map((order) => (
                 <OrderCard key={order.id}>
                   <Stack
@@ -421,11 +386,11 @@ export default function AdminOrdersScreen() {
                     spacing={1.5}
                   >
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
                         {order.order_number}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {order.company?.name || 'Company'} · {order.batch?.peptide?.name || 'Peptide'}
+                        {order.company?.name || 'Company'} · {order.peptide?.name || order.batch?.peptide?.name || 'Peptide'}
                       </Typography>
                     </Box>
 
@@ -445,10 +410,10 @@ export default function AdminOrdersScreen() {
 
                     <Box>
                       <Typography variant="caption" color="text.secondary">
-                        Batch Code
+                        Inventory Reference
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {order.batch?.batch_code || '—'}
+                        {order.batch?.batch_code || 'Direct catalog order'}
                       </Typography>
                     </Box>
 
@@ -457,7 +422,16 @@ export default function AdminOrdersScreen() {
                         Quantity
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {Number(order.approved_quantity || order.requested_quantity || 0).toLocaleString()} units
+                        {Number(order.approved_quantity || order.requested_quantity || 0).toLocaleString('en-US')} units
+                      </Typography>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Submitted Unit Price
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {money(order.unit_price_at_submission)}
                       </Typography>
                     </Box>
 

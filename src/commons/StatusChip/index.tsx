@@ -27,22 +27,12 @@ function normalizeStatusKey(status?: string | null) {
       return 'cancelled';
     case 'EXPIRED':
       return 'expired';
-    case 'OPEN':
-      return 'open';
-    case 'CLOSED':
-      return 'closed';
-    case 'ARCHIVED':
-      return 'archived';
     case 'PENDING':
       return 'pending';
     case 'ACTIVE':
       return 'active';
     case 'SUSPENDED':
       return 'suspended';
-    case 'CONFIRMED':
-      return 'confirmed';
-    case 'CONVERTED_TO_BATCH':
-      return 'converted';
     default:
       return 'default';
   }

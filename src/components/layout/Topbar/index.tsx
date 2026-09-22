@@ -23,6 +23,7 @@ type TopbarProps = {
   userName?: string;
   userRole?: 'ADMIN' | 'USER';
   onMenuClick?: () => void;
+  mobileNavOpen?: boolean;
 };
 
 export default function Topbar({
@@ -31,17 +32,19 @@ export default function Topbar({
   userName,
   userRole,
   onMenuClick,
+  mobileNavOpen = false,
 }: TopbarProps) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const seed = (userName || userRole || 'user').replace(/\s+/g, ' ').trim();
+  const displayName = userRole === 'ADMIN' ? 'Supplide' : userName;
+  const seed = (displayName || userRole || 'user').replace(/\s+/g, ' ').trim();
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
     hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   }
   const hue = hash % 360;
-  const initials = userName
-    ? userName
+  const initials = displayName
+    ? displayName
         .split(' ')
         .filter(Boolean)
         .slice(0, 2)
@@ -61,7 +64,12 @@ export default function Topbar({
     <TopbarRoot>
       <TopbarToolbar>
         <ActionsWrap>
-          <MobileMenuButton onClick={onMenuClick}>
+          <MobileMenuButton
+            onClick={onMenuClick}
+            aria-label="Open primary navigation"
+            aria-expanded={mobileNavOpen}
+            aria-controls="mobile-navigation"
+          >
             <MenuIcon />
           </MobileMenuButton>
         </ActionsWrap>
@@ -75,10 +83,11 @@ export default function Topbar({
               display: { xs: 'none', sm: 'block' },
             }}
           >
-            {subtitle || 'Peptide Production Allocation Platform'}
+            {subtitle || 'Supplide partner operations'}
           </Typography>
 
           <Typography
+            component="h1"
             variant="h5"
             sx={{
               fontWeight: 700,
@@ -91,7 +100,7 @@ export default function Topbar({
         </TitleWrap>
 
         <ActionsWrap>
-          {userName ? (
+          {displayName ? (
             <UserChip>
               <UserAvatar
                 sx={{
@@ -109,7 +118,7 @@ export default function Topbar({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {userName}
+                {displayName}
               </Typography>
               {userRole === 'ADMIN' ? <UserRoleBadge>ADMIN</UserRoleBadge> : null}
             </UserChip>
@@ -132,6 +141,7 @@ export default function Topbar({
                 marginRight: { xs: 0, sm: 1 },
               },
             }}
+            aria-label={loggingOut ? 'Logging out' : 'Log out'}
           >
             <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
               {loggingOut ? 'Logging out' : 'Logout'}

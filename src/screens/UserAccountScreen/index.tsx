@@ -14,6 +14,8 @@ import AppShell from '@/src/components/layout/AppShell';
 import StatusChip from '@/src/commons/StatusChip';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
+import { userNavigation } from '@/src/config/navigation';
+import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import {
   AddressCard,
   AddressList,
@@ -50,14 +52,6 @@ type AddressRow = {
   is_default: boolean;
 };
 
-const userNavItems = [
-  { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Wishlist', href: '/wishlist' },
-  { label: 'Peptides', href: '/peptides' },
-  { label: 'My Orders', href: '/my-orders' },
-  { label: 'Account', href: '/account' },
-];
-
 export default function UserAccountScreen() {
   const router = useRouter();
   const { profile, loading: sessionLoading } = useSessionUser();
@@ -68,6 +62,7 @@ export default function UserAccountScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
 
   const [draft, setDraft] = useState({
     label: '',
@@ -97,42 +92,45 @@ export default function UserAccountScreen() {
       setLoading(true);
       setErrorMessage('');
 
-      if (profile.company_id) {
-        const { data: companyRow, error: companyError } = await supabase
-          .from('companies')
-          .select('id, name, billing_contact_name, billing_email, phone, notes, is_active')
-          .eq('id', profile.company_id)
-          .single();
-
-        if (companyError) {
-          setErrorMessage(companyError.message);
-          setLoading(false);
-          return;
-        }
-
-        setCompany(companyRow);
-      }
-
-      const { data: addressRows, error: addressError } = await supabase
-        .from('company_addresses')
-        .select(
-          'id, label, recipient_name, line1, line2, city, state, postal_code, country, is_default'
-        )
-        .eq('company_id', profile.company_id)
-        .order('is_default', { ascending: false });
-
-      if (addressError) {
-        setErrorMessage(addressError.message);
+      if (!profile.company_id) {
+        setCompany(null);
+        setAddresses([]);
         setLoading(false);
         return;
       }
 
-      setAddresses(addressRows || []);
+      const [companyResult, addressResult] = await Promise.all([
+        supabase
+          .from('companies')
+          .select('id, name, billing_contact_name, billing_email, phone, notes, is_active')
+          .eq('id', profile.company_id)
+          .single(),
+        supabase
+          .from('company_addresses')
+          .select(
+            'id, label, recipient_name, line1, line2, city, state, postal_code, country, is_default'
+          )
+          .eq('company_id', profile.company_id)
+          .order('is_default', { ascending: false }),
+      ]);
+
+      if (companyResult.error || addressResult.error) {
+        setErrorMessage(
+          companyResult.error?.message ||
+            addressResult.error?.message ||
+            'Unable to load account information.'
+        );
+        setLoading(false);
+        return;
+      }
+
+      setCompany(companyResult.data);
+      setAddresses(addressResult.data || []);
       setLoading(false);
     };
 
     loadAccountPage();
-  }, [profile, router, sessionLoading]);
+  }, [profile, retryKey, router, sessionLoading]);
 
   const stats = useMemo(() => {
     return {
@@ -151,11 +149,11 @@ export default function UserAccountScreen() {
     }
 
     if (
-      !draft.line1 ||
-      !draft.city ||
-      !draft.state ||
-      !draft.postal_code ||
-      !draft.country
+      !draft.line1.trim() ||
+      !draft.city.trim() ||
+      !draft.state.trim() ||
+      !draft.postal_code.trim() ||
+      !draft.country.trim()
     ) {
       setErrorMessage('Please fill in all required address fields.');
       return;
@@ -169,14 +167,14 @@ export default function UserAccountScreen() {
       .from('company_addresses')
       .insert({
         company_id: profile.company_id,
-        label: draft.label || null,
-        recipient_name: draft.recipient_name || null,
-        line1: draft.line1,
-        line2: draft.line2 || null,
-        city: draft.city,
-        state: draft.state,
-        postal_code: draft.postal_code,
-        country: draft.country,
+        label: draft.label.trim() || null,
+        recipient_name: draft.recipient_name.trim() || null,
+        line1: draft.line1.trim(),
+        line2: draft.line2.trim() || null,
+        city: draft.city.trim(),
+        state: draft.state.trim(),
+        postal_code: draft.postal_code.trim(),
+        country: draft.country.trim(),
         is_default: addresses.length === 0,
       })
       .select(
@@ -206,21 +204,7 @@ export default function UserAccountScreen() {
   };
 
   if (sessionLoading || loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          backgroundColor: '#F8FAFC',
-        }}
-      >
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <CircularProgress />
-          <Typography color="text.secondary">Loading account...</Typography>
-        </Stack>
-      </Box>
-    );
+    return <PageSkeleton cards={3} label="Loading account and addresses" />;
   }
 
   if (!profile || profile.role !== 'USER' || profile.account_status !== 'ACTIVE') {
@@ -231,18 +215,22 @@ export default function UserAccountScreen() {
     <AppShell
       title="Account & Addresses"
       subtitle="Manage shipping destinations for your company"
-      navItems={userNavItems}
+      navItems={userNavigation}
     >
       <Stack spacing={3}>
         {message ? <Alert severity="success">{message}</Alert> : null}
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+        {errorMessage ? (
+          <Alert severity="error" action={<Button color="inherit" onClick={() => setRetryKey((key) => key + 1)}>Retry</Button>}>
+            {errorMessage}
+          </Alert>
+        ) : null}
 
         <StatsGrid>
           <StatCard>
             <Typography variant="body2" color="text.secondary">
               Company
             </Typography>
-            <Typography variant="h5" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h5" sx={{ mt: 1, fontWeight: 800 }}>
               {company?.name || '—'}
             </Typography>
           </StatCard>
@@ -251,7 +239,7 @@ export default function UserAccountScreen() {
             <Typography variant="body2" color="text.secondary">
               Saved Addresses
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.totalAddresses}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -271,7 +259,7 @@ export default function UserAccountScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
               Saved Shipping Addresses
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -280,7 +268,7 @@ export default function UserAccountScreen() {
 
             {addresses.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
                   No addresses saved yet
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -288,7 +276,7 @@ export default function UserAccountScreen() {
                 </Typography>
               </EmptyWrap>
             ) : (
-              <AddressList>
+              <AddressList className="record-results">
                 {addresses.map((address) => (
                   <AddressCard key={address.id}>
                   <Stack
@@ -300,7 +288,7 @@ export default function UserAccountScreen() {
                     spacing={1.5}
                   >
                       <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                        <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
                           {address.label || 'Address'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -328,7 +316,7 @@ export default function UserAccountScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
               Add Shipping Address
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>

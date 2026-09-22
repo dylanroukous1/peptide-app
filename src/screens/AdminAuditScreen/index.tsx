@@ -2,16 +2,21 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import AppShell from '@/src/components/layout/AppShell';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
+import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import { supabase } from '@/src/supabase/client';
+import { adminNavigation } from '@/src/config/navigation';
+import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import { singleRelation } from '@/src/lib/supabase/relations';
+import {
+  type AuditReferences,
+  auditActorLabel,
+  formatAuditMessage,
+  humanizeAuditValue,
+  sanitizeAuditDetails,
+} from '@/src/lib/audit/formatAuditEvent';
 import {
   EmptyWrap,
   JsonPreviewBox,
@@ -45,52 +50,47 @@ type EmailEventRow = {
   created_at: string;
 };
 
-const adminNavItems = [
-  { label: 'Overview', href: '/admin' },
-  { label: 'Wishlist', href: '/admin/wishlist' },
-  { label: 'Orders', href: '/admin/orders' },
-  { label: 'Peptides', href: '/admin/peptides' },
-  { label: 'Batches', href: '/admin/batches' },
-  { label: 'Companies', href: '/admin/companies' },
-  { label: 'Users', href: '/admin/users' },
-  { label: 'Audit', href: '/admin/audit' },
-];
+const emptyReferences: AuditReferences = {
+  actors: {},
+  orders: {},
+  peptides: {},
+  companies: {},
+  users: {},
+};
 
 function formatDateTime(value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString();
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
 }
 
-function safePreview(value: Record<string, unknown> | null) {
-  if (!value) return '—';
+function safePreview(value: unknown) {
+  if (!value) return 'None';
   try {
-    return JSON.stringify(value, null, 2);
+    return JSON.stringify(sanitizeAuditDetails(value), null, 2);
   } catch {
-    return 'Unable to render JSON';
+    return 'Unable to display details';
   }
 }
 
 export default function AdminAuditScreen() {
   const router = useRouter();
   const { profile, loading: sessionLoading } = useSessionUser();
-
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [emailEvents, setEmailEvents] = useState<EmailEventRow[]>([]);
+  const [references, setReferences] = useState<AuditReferences>(emptyReferences);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useSessionStorageState('admin-audit-search', '');
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (sessionLoading) return;
-
-    if (!profile) {
-      router.replace('/login');
-      return;
-    }
-
-    if (profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') {
+    if (!profile || profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') {
       router.replace('/login');
       return;
     }
@@ -98,253 +98,165 @@ export default function AdminAuditScreen() {
     const loadAuditPage = async () => {
       setLoading(true);
       setErrorMessage('');
-
-      const [
-        { data: auditData, error: auditError },
-        { data: emailData, error: emailError },
-      ] = await Promise.all([
+      const [auditResult, emailResult] = await Promise.all([
         supabase
           .from('audit_logs')
-          .select(
-            'id, actor_user_id, action, entity_type, entity_id, before_json, after_json, created_at'
-          )
+          .select('id, actor_user_id, action, entity_type, entity_id, before_json, after_json, created_at')
           .order('created_at', { ascending: false })
-          .limit(50),
+          .limit(100),
         supabase
           .from('email_events')
           .select('id, type, to, subject, order_id, created_at')
           .order('created_at', { ascending: false })
-          .limit(50),
+          .limit(100),
       ]);
 
-      if (auditError || emailError) {
-        setErrorMessage(
-          auditError?.message || emailError?.message || 'Failed to load audit data.'
-        );
+      if (auditResult.error || emailResult.error) {
+        setErrorMessage(auditResult.error?.message || emailResult.error?.message || 'Failed to load activity.');
         setLoading(false);
         return;
       }
 
-      setAuditLogs(auditData || []);
-      setEmailEvents(emailData || []);
+      const logs = (auditResult.data || []) as AuditLogRow[];
+      const emails = (emailResult.data || []) as EmailEventRow[];
+      const idsFor = (type: string) =>
+        [...new Set(logs.filter((row) => row.entity_type.toLowerCase() === type).map((row) => row.entity_id))];
+      const actorIds = [...new Set(logs.map((row) => row.actor_user_id).filter((id): id is string => Boolean(id)))];
+      const orderIds = [...new Set([...idsFor('order'), ...emails.map((row) => row.order_id).filter((id): id is string => Boolean(id))])];
+      const profileIds = [...new Set([...actorIds, ...idsFor('profile'), ...idsFor('user')])];
+      const peptideIds = idsFor('peptide');
+      const companyIds = idsFor('company');
+
+      const [profileResult, orderResult, peptideResult, companyResult] = await Promise.all([
+        profileIds.length
+          ? supabase.from('profiles').select('id, first_name, last_name, email').in('id', profileIds)
+          : Promise.resolve({ data: [], error: null }),
+        orderIds.length
+          ? supabase.from('orders').select('id, order_number, peptide:peptides(name)').in('id', orderIds)
+          : Promise.resolve({ data: [], error: null }),
+        peptideIds.length
+          ? supabase.from('peptides').select('id, name').in('id', peptideIds)
+          : Promise.resolve({ data: [], error: null }),
+        companyIds.length
+          ? supabase.from('companies').select('id, name').in('id', companyIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      const referenceError = profileResult.error || orderResult.error || peptideResult.error || companyResult.error;
+      if (referenceError) {
+        setErrorMessage(referenceError.message);
+        setLoading(false);
+        return;
+      }
+
+      const nextReferences: AuditReferences = { actors: {}, orders: {}, peptides: {}, companies: {}, users: {} };
+      for (const user of profileResult.data || []) {
+        const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+        const label = fullName || user.email || 'Unknown administrator';
+        nextReferences.actors[user.id] = label;
+        nextReferences.users[user.id] = user.email || label;
+      }
+      for (const order of orderResult.data || []) {
+        nextReferences.orders[order.id] = {
+          orderNumber: order.order_number,
+          productName: singleRelation(order.peptide)?.name,
+        };
+      }
+      for (const peptide of peptideResult.data || []) nextReferences.peptides[peptide.id] = peptide.name;
+      for (const company of companyResult.data || []) nextReferences.companies[company.id] = company.name;
+
+      setAuditLogs(logs);
+      setEmailEvents(emails);
+      setReferences(nextReferences);
       setLoading(false);
     };
 
-    loadAuditPage();
-  }, [profile, router, sessionLoading]);
+    void loadAuditPage();
+  }, [profile, retryKey, router, sessionLoading]);
 
-  const filteredAuditLogs = useMemo(() => {
-    return auditLogs.filter((row) => {
-      const haystack = [
-        row.action,
-        row.entity_type,
-        row.entity_id,
-        row.actor_user_id || '',
-      ]
+  const query = search.trim().toLowerCase();
+  const filteredAuditLogs = useMemo(
+    () => auditLogs.filter((row) => {
+      const message = formatAuditMessage(row, references);
+      return [message, auditActorLabel(row.actor_user_id, references), row.action]
         .join(' ')
-        .toLowerCase();
-
-      return haystack.includes(search.toLowerCase());
-    });
-  }, [auditLogs, search]);
-
-  const filteredEmailEvents = useMemo(() => {
-    return emailEvents.filter((row) => {
-      const haystack = [
-        row.type,
-        row.to,
-        row.subject,
-        row.order_id || '',
-      ]
+        .toLowerCase()
+        .includes(query);
+    }),
+    [auditLogs, query, references]
+  );
+  const filteredEmailEvents = useMemo(
+    () => emailEvents.filter((row) => {
+      const orderNumber = row.order_id ? references.orders[row.order_id]?.orderNumber || '' : '';
+      return [row.to, row.subject, humanizeAuditValue(row.type), orderNumber]
         .join(' ')
-        .toLowerCase();
+        .toLowerCase()
+        .includes(query);
+    }),
+    [emailEvents, query, references]
+  );
+  const stats = useMemo(() => ({
+    total: auditLogs.length + emailEvents.length,
+    ordersPlaced: auditLogs.filter((row) => ['ORDER_SUBMITTED', 'ORDER_CREATED'].includes(row.action.toUpperCase())).length,
+    statusChanges: auditLogs.filter((row) => row.action.toUpperCase() === 'ORDER_STATUS_UPDATED').length,
+    emailsSent: emailEvents.length,
+  }), [auditLogs, emailEvents]);
 
-      return haystack.includes(search.toLowerCase());
-    });
-  }, [emailEvents, search]);
-
-  const stats = useMemo(() => {
-    return {
-      auditCount: auditLogs.length,
-      emailCount: emailEvents.length,
-      createActions: auditLogs.filter((row) => row.action.includes('CREATE')).length,
-      updateActions: auditLogs.filter((row) => row.action.includes('UPDATE')).length,
-    };
-  }, [auditLogs, emailEvents]);
-
-  if (sessionLoading || loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          backgroundColor: '#F8FAFC',
-        }}
-      >
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <CircularProgress />
-          <Typography color="text.secondary">Loading audit logs...</Typography>
-        </Stack>
-      </Box>
-    );
-  }
-
-  if (!profile || profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') {
-    return null;
-  }
+  if (sessionLoading || loading) return <PageSkeleton label="Loading activity" />;
+  if (!profile || profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') return null;
 
   return (
-    <AppShell
-      title="Audit & Email Events"
-      subtitle="Trace system activity and outbound notifications"
-      navItems={adminNavItems}
-    >
+    <AppShell title="Activity" subtitle="Understand important account, order, company and email activity" navItems={adminNavigation}>
       <Stack spacing={3}>
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-
+        {errorMessage ? <Alert severity="error" action={<Button color="inherit" onClick={() => setRetryKey((key) => key + 1)}>Retry</Button>}>{errorMessage}</Alert> : null}
         <StatsGrid>
-          <StatCard>
-            <Typography variant="body2" color="text.secondary">
-              Audit Entries
-            </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
-              {stats.auditCount}
-            </Typography>
-          </StatCard>
-
-          <StatCard>
-            <Typography variant="body2" color="text.secondary">
-              Email Events
-            </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
-              {stats.emailCount}
-            </Typography>
-          </StatCard>
-
-          <StatCard>
-            <Typography variant="body2" color="text.secondary">
-              Create Actions
-            </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
-              {stats.createActions}
-            </Typography>
-          </StatCard>
-
-          <StatCard>
-            <Typography variant="body2" color="text.secondary">
-              Update Actions
-            </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
-              {stats.updateActions}
-            </Typography>
-          </StatCard>
+          {[
+            ['Total Activity', stats.total],
+            ['Orders Placed', stats.ordersPlaced],
+            ['Order Status Changes', stats.statusChanges],
+            ['Emails Sent', stats.emailsSent],
+          ].map(([label, value]) => (
+            <StatCard key={label}>
+              <Typography variant="body2" color="text.secondary">{label}</Typography>
+              <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>{value}</Typography>
+            </StatCard>
+          ))}
         </StatsGrid>
 
         <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-            Search Activity
-          </Typography>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Find activity</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Search actions, entities, event types, recipients, or order references.
+            Search by person, order number, product, company, recipient or action.
           </Typography>
-
-          <Box sx={{ mt: 2 }}>
-            <StyledTextField
-              label="Search logs"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              fullWidth
-            />
-          </Box>
+          <StyledTextField label="Search activity" value={search} onChange={(event) => setSearch(event.target.value)} fullWidth sx={{ mt: 2 }} />
         </SectionCard>
 
         <PageGrid>
           <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              Audit Logs
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+              Operational Activity · {filteredAuditLogs.length}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Tracks entity changes and the acting user id where available.
-            </Typography>
-
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Who acted, what changed, which record was affected and when.</Typography>
             {filteredAuditLogs.length === 0 ? (
-              <EmptyWrap>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  No audit entries found
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Matching audit activity will appear here.
-                </Typography>
-              </EmptyWrap>
+              <EmptyWrap><Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>No matching activity</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Try a different person, order, product, company or action.</Typography></EmptyWrap>
             ) : (
-              <ListWrap>
+              <ListWrap className="record-results">
                 {filteredAuditLogs.map((row) => (
                   <LogCard key={row.id}>
-                    <Stack spacing={0.5}>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                        {row.action}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {row.entity_type} · {row.entity_id}
-                      </Typography>
-                    </Stack>
-
-                    <MetaGrid>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Actor User ID
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {row.actor_user_id || '—'}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Created At
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {formatDateTime(row.created_at)}
-                        </Typography>
-                      </Box>
-                    </MetaGrid>
-
-                    <JsonPreviewBox>
-                      <Typography variant="caption" color="text.secondary">
-                        Before
-                      </Typography>
-                      <Box
-                        component="pre"
-                        sx={{
-                          m: 0,
-                          mt: 0.75,
-                          fontSize: 12,
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {safePreview(row.before_json)}
-                      </Box>
-                    </JsonPreviewBox>
-
-                    <JsonPreviewBox>
-                      <Typography variant="caption" color="text.secondary">
-                        After
-                      </Typography>
-                      <Box
-                        component="pre"
-                        sx={{
-                          m: 0,
-                          mt: 0.75,
-                          fontSize: 12,
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {safePreview(row.after_json)}
-                      </Box>
-                    </JsonPreviewBox>
+                    <Typography component="h3" variant="body1" sx={{ fontWeight: 750 }}>{formatAuditMessage(row, references)}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{formatDateTime(row.created_at)}</Typography>
+                    <Box component="details" sx={{ mt: 1.5 }}>
+                      <Typography component="summary" variant="body2" sx={{ cursor: 'pointer', fontWeight: 700, width: 'fit-content' }}>View details</Typography>
+                      <MetaGrid>
+                        <Box><Typography variant="caption" color="text.secondary">Action</Typography><Typography variant="body2">{humanizeAuditValue(row.action)}</Typography></Box>
+                        <Box><Typography variant="caption" color="text.secondary">Record type</Typography><Typography variant="body2">{humanizeAuditValue(row.entity_type)}</Typography></Box>
+                      </MetaGrid>
+                      <JsonPreviewBox>
+                        <Box component="pre" sx={{ m: 0, whiteSpace: 'pre-wrap', fontSize: 12 }}>
+                          {safePreview({ before: row.before_json, after: row.after_json })}
+                        </Box>
+                      </JsonPreviewBox>
+                    </Box>
                   </LogCard>
                 ))}
               </ListWrap>
@@ -352,63 +264,19 @@ export default function AdminAuditScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              Email Event Log
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Tracks application-side notification events tied to orders where applicable.
-            </Typography>
-
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Email Activity · {filteredEmailEvents.length}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Messages recorded by Supplide, with related order numbers where available.</Typography>
             {filteredEmailEvents.length === 0 ? (
-              <EmptyWrap>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  No email events found
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Matching email activity will appear here.
-                </Typography>
-              </EmptyWrap>
+              <EmptyWrap><Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>No matching email activity</Typography></EmptyWrap>
             ) : (
-              <ListWrap>
+              <ListWrap className="record-results">
                 {filteredEmailEvents.map((row) => (
                   <LogCard key={row.id}>
-                    <Stack spacing={0.5}>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                        {row.type}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {row.subject}
-                      </Typography>
-                    </Stack>
-
-                    <MetaGrid>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Recipient
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {row.to}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Order ID
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {row.order_id || '—'}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Created At
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {formatDateTime(row.created_at)}
-                        </Typography>
-                      </Box>
-                    </MetaGrid>
+                    <Typography component="h3" variant="body1" sx={{ fontWeight: 750 }}>{humanizeAuditValue(row.type)} email sent to {row.to}.</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{row.subject}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                      {row.order_id ? `${references.orders[row.order_id]?.orderNumber || 'Related order'} · ` : ''}{formatDateTime(row.created_at)}
+                    </Typography>
                   </LogCard>
                 ))}
               </ListWrap>

@@ -13,10 +13,10 @@ export const StatsGrid = styled(Box)(({ theme }) => ({
 }));
 
 export const StatCard = styled(Card)(({ theme }) => ({
-  borderRadius: 24,
+  borderRadius: 14,
   padding: theme.spacing(2.5),
   border: '1px solid #E2E8F0',
-  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+  boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
 }));
 
 export const PageGrid = styled(Box)(({ theme }) => ({
@@ -29,10 +29,10 @@ export const PageGrid = styled(Box)(({ theme }) => ({
 }));
 
 export const SectionCard = styled(Card)(({ theme }) => ({
-  borderRadius: 28,
+  borderRadius: 10,
   padding: theme.spacing(3),
   border: '1px solid #E2E8F0',
-  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+  boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
   [theme.breakpoints.down('sm')]: {
     padding: theme.spacing(2),
   },
@@ -46,7 +46,7 @@ export const FormGrid = styled('form')(({ theme }) => ({
 
 export const StyledTextField = styled(TextField)(() => ({
   '& .MuiOutlinedInput-root': {
-    borderRadius: 16,
+    borderRadius: 10,
   },
 }));
 
@@ -59,7 +59,7 @@ export const ListWrap = styled(Box)(({ theme }) => ({
 export const CompanyCard = styled(Box)(({ theme }) => ({
   border: '1px solid #E2E8F0',
   backgroundColor: '#FFFFFF',
-  borderRadius: 22,
+  borderRadius: 12,
   padding: theme.spacing(2),
 }));
 
@@ -92,7 +92,7 @@ export const ButtonRow = styled(Box)(({ theme }) => ({
 
 export const EmptyWrap = styled(Box)(({ theme }) => ({
   border: '1px dashed #CBD5E1',
-  borderRadius: 24,
+  borderRadius: 14,
   padding: theme.spacing(4),
   textAlign: 'center',
   backgroundColor: '#FFFFFF',

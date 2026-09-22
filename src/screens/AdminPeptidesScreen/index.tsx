@@ -14,6 +14,9 @@ import AppShell from '@/src/components/layout/AppShell';
 import StatusChip from '@/src/commons/StatusChip';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
+import { adminNavigation } from '@/src/config/navigation';
+import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   ActionsGrid,
   EmptyWrap,
@@ -36,17 +39,6 @@ type PeptideRow = {
   created_at?: string;
 };
 
-const adminNavItems = [
-  { label: 'Overview', href: '/admin' },
-  { label: 'Wishlist', href: '/admin/wishlist' },
-  { label: 'Orders', href: '/admin/orders' },
-  { label: 'Peptides', href: '/admin/peptides' },
-  { label: 'Batches', href: '/admin/batches' },
-  { label: 'Companies', href: '/admin/companies' },
-  { label: 'Users', href: '/admin/users' },
-  { label: 'Audit', href: '/admin/audit' },
-];
-
 function money(value: number | string | null | undefined) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -59,7 +51,7 @@ function formatDate(value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', { timeZone: 'UTC' });
 }
 
 export default function AdminPeptidesScreen() {
@@ -73,6 +65,7 @@ export default function AdminPeptidesScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [savingPeptideId, setSavingPeptideId] = useState<string | null>(null);
   const [togglingPeptideId, setTogglingPeptideId] = useState<string | null>(null);
+  const [search, setSearch] = useSessionStorageState('admin-peptide-search', '');
 
   const [newPeptide, setNewPeptide] = useState({
     name: '',
@@ -126,7 +119,8 @@ export default function AdminPeptidesScreen() {
       return;
     }
 
-    loadPeptides();
+    const timer = window.setTimeout(() => void loadPeptides(), 0);
+    return () => window.clearTimeout(timer);
   }, [profile, router, sessionLoading]);
 
   const stats = useMemo(() => {
@@ -151,6 +145,12 @@ export default function AdminPeptidesScreen() {
     };
   }, [peptides]);
 
+  const filteredPeptides = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return peptides;
+    return peptides.filter((peptide) => peptide.name.toLowerCase().includes(query));
+  }, [peptides, search]);
+
   const handleCreatePeptide = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -166,11 +166,15 @@ export default function AdminPeptidesScreen() {
     setMessage('');
     setErrorMessage('');
 
-    const { error } = await supabase.from('peptides').insert({
-      name: trimmedName,
-      default_unit_price: price,
-      is_active: true,
-    });
+    const { data, error } = await supabase
+      .from('peptides')
+      .insert({
+        name: trimmedName,
+        default_unit_price: price,
+        is_active: true,
+      })
+      .select('id, name, default_unit_price, is_active, created_at')
+      .single();
 
     if (error) {
       setErrorMessage(error.message);
@@ -179,9 +183,13 @@ export default function AdminPeptidesScreen() {
     }
 
     setNewPeptide({ name: '', defaultUnitPrice: '' });
+    setPeptides((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)));
+    setDrafts((current) => ({
+      ...current,
+      [data.id]: { name: data.name, defaultUnitPrice: String(data.default_unit_price) },
+    }));
     setMessage(`Peptide ${trimmedName} created successfully.`);
     setSubmitting(false);
-    await loadPeptides();
   };
 
   const handleSavePeptide = async (peptideId: string) => {
@@ -198,13 +206,15 @@ export default function AdminPeptidesScreen() {
     setMessage('');
     setErrorMessage('');
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('peptides')
       .update({
         name: trimmedName,
         default_unit_price: price,
       })
-      .eq('id', peptideId);
+      .eq('id', peptideId)
+      .select('id, name, default_unit_price, is_active, created_at')
+      .single();
 
     if (error) {
       setErrorMessage(error.message);
@@ -213,21 +223,34 @@ export default function AdminPeptidesScreen() {
     }
 
     setMessage(`Peptide ${trimmedName} saved successfully.`);
+    setPeptides((current) =>
+      current
+        .map((item) => (item.id === peptideId ? data : item))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    );
     setSavingPeptideId(null);
-    await loadPeptides();
   };
 
   const handleTogglePeptide = async (row: PeptideRow) => {
+    if (
+      row.is_active &&
+      !window.confirm(`Deactivate ${row.name}? It will no longer appear in the partner catalog.`)
+    ) {
+      return;
+    }
+
     setTogglingPeptideId(row.id);
     setMessage('');
     setErrorMessage('');
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('peptides')
       .update({
         is_active: !row.is_active,
       })
-      .eq('id', row.id);
+      .eq('id', row.id)
+      .select('id, name, default_unit_price, is_active, created_at')
+      .single();
 
     if (error) {
       setErrorMessage(error.message);
@@ -238,26 +261,12 @@ export default function AdminPeptidesScreen() {
     setMessage(
       `Peptide ${row.name} ${row.is_active ? 'deactivated' : 'activated'} successfully.`
     );
+    setPeptides((current) => current.map((item) => (item.id === row.id ? data : item)));
     setTogglingPeptideId(null);
-    await loadPeptides();
   };
 
   if (sessionLoading || loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          backgroundColor: '#F8FAFC',
-        }}
-      >
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <CircularProgress />
-          <Typography color="text.secondary">Loading peptides admin...</Typography>
-        </Stack>
-      </Box>
-    );
+    return <PageSkeleton label="Loading peptide catalog" />;
   }
 
   if (!profile || profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') {
@@ -268,18 +277,22 @@ export default function AdminPeptidesScreen() {
     <AppShell
       title="Peptide Management"
       subtitle="Create, update, and manage active peptide catalog entries"
-      navItems={adminNavItems}
+      navItems={adminNavigation}
     >
       <Stack spacing={3}>
         {message ? <Alert severity="success">{message}</Alert> : null}
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+        {errorMessage ? (
+          <Alert severity="error" action={<Button color="inherit" onClick={() => void loadPeptides()}>Retry</Button>}>
+            {errorMessage}
+          </Alert>
+        ) : null}
 
         <StatsGrid>
           <StatCard>
             <Typography variant="body2" color="text.secondary">
               Total Peptides
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.total}
             </Typography>
           </StatCard>
@@ -288,7 +301,7 @@ export default function AdminPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Active
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.activeCount}
             </Typography>
           </StatCard>
@@ -297,7 +310,7 @@ export default function AdminPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Inactive
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.inactiveCount}
             </Typography>
           </StatCard>
@@ -306,7 +319,7 @@ export default function AdminPeptidesScreen() {
             <Typography variant="body2" color="text.secondary">
               Average Default Price
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {money(stats.avgPrice)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -317,7 +330,7 @@ export default function AdminPeptidesScreen() {
 
         <PageGrid>
           <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
               Create New Peptide
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -338,6 +351,7 @@ export default function AdminPeptidesScreen() {
               <StyledTextField
                 label="Default Unit Price"
                 type="number"
+                slotProps={{ htmlInput: { min: 0.01, step: 0.01 } }}
                 value={newPeptide.defaultUnitPrice}
                 onChange={(e) =>
                   setNewPeptide((prev) => ({
@@ -372,25 +386,35 @@ export default function AdminPeptidesScreen() {
           </SectionCard>
 
           <SectionCard>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              Existing Peptides
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+              Existing Peptides · {filteredPeptides.length} {filteredPeptides.length === 1 ? 'product' : 'products'}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Update pricing, rename entries, or activate and deactivate peptides.
             </Typography>
 
-            {peptides.length === 0 ? (
+            <StyledTextField
+              label="Search products"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              fullWidth
+              sx={{ mt: 2 }}
+            />
+
+            {filteredPeptides.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  No peptides found
+                <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
+                  {peptides.length === 0 ? 'No peptides found' : 'No matching products'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Create your first peptide to start building the catalog.
+                  {peptides.length === 0
+                    ? 'Create your first peptide to start building the catalog.'
+                    : 'Try a different product name.'}
                 </Typography>
               </EmptyWrap>
             ) : (
-              <ListWrap>
-                {peptides.map((row) => (
+              <ListWrap className="record-results">
+                {filteredPeptides.map((row) => (
                   <PeptideCard key={row.id}>
                   <Stack
                     direction={{ xs: 'column', sm: 'row' }}
@@ -401,7 +425,7 @@ export default function AdminPeptidesScreen() {
                     spacing={1.5}
                   >
                       <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
                           {row.name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -451,6 +475,7 @@ export default function AdminPeptidesScreen() {
                       <StyledTextField
                         label="Default Price"
                         type="number"
+                        slotProps={{ htmlInput: { min: 0.01, step: 0.01 } }}
                         value={drafts[row.id]?.defaultUnitPrice || ''}
                         onChange={(e) =>
                           setDrafts((prev) => ({

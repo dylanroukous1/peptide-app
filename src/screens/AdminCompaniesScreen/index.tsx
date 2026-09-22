@@ -14,6 +14,10 @@ import AppShell from '@/src/components/layout/AppShell';
 import StatusChip from '@/src/commons/StatusChip';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
+import { adminNavigation } from '@/src/config/navigation';
+import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import { useUnsavedChanges } from '@/src/hooks/useUnsavedChanges';
+import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   ActionsGrid,
   ButtonRow,
@@ -40,22 +44,11 @@ type CompanyRow = {
   created_at?: string;
 };
 
-const adminNavItems = [
-  { label: 'Overview', href: '/admin' },
-  { label: 'Wishlist', href: '/admin/wishlist' },
-  { label: 'Orders', href: '/admin/orders' },
-  { label: 'Peptides', href: '/admin/peptides' },
-  { label: 'Batches', href: '/admin/batches' },
-  { label: 'Companies', href: '/admin/companies' },
-  { label: 'Users', href: '/admin/users' },
-  { label: 'Audit', href: '/admin/audit' },
-];
-
 function formatDate(value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', { timeZone: 'UTC' });
 }
 
 export default function AdminCompaniesScreen() {
@@ -69,6 +62,7 @@ export default function AdminCompaniesScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [savingCompanyId, setSavingCompanyId] = useState<string | null>(null);
   const [togglingCompanyId, setTogglingCompanyId] = useState<string | null>(null);
+  const [search, setSearch] = useSessionStorageState('admin-company-search', '');
 
   const [newCompany, setNewCompany] = useState({
     name: '',
@@ -90,6 +84,24 @@ export default function AdminCompaniesScreen() {
       }
     >
   >({});
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (Object.values(newCompany).some((value) => value.trim())) return true;
+
+    return companies.some((company) => {
+      const draft = drafts[company.id];
+      if (!draft) return false;
+      return (
+        draft.name !== company.name ||
+        draft.billingContactName !== (company.billing_contact_name || '') ||
+        draft.billingEmail !== (company.billing_email || '') ||
+        draft.phone !== (company.phone || '') ||
+        draft.notes !== (company.notes || '')
+      );
+    });
+  }, [companies, drafts, newCompany]);
+
+  useUnsavedChanges(hasUnsavedChanges);
 
   const loadCompanies = async () => {
     setLoading(true);
@@ -147,7 +159,8 @@ export default function AdminCompaniesScreen() {
       return;
     }
 
-    loadCompanies();
+    const timer = window.setTimeout(() => void loadCompanies(), 0);
+    return () => window.clearTimeout(timer);
   }, [profile, router, sessionLoading]);
 
   const stats = useMemo(() => {
@@ -165,6 +178,17 @@ export default function AdminCompaniesScreen() {
     };
   }, [companies]);
 
+  const filteredCompanies = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return companies;
+    return companies.filter((company) =>
+      [company.name, company.billing_contact_name || '', company.billing_email || '', company.phone || '']
+        .join(' ')
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [companies, search]);
+
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -173,18 +197,30 @@ export default function AdminCompaniesScreen() {
       return;
     }
 
+    if (
+      newCompany.billingEmail.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newCompany.billingEmail.trim())
+    ) {
+      setErrorMessage('Enter a valid billing email address.');
+      return;
+    }
+
     setSubmitting(true);
     setMessage('');
     setErrorMessage('');
 
-    const { error } = await supabase.from('companies').insert({
-      name: newCompany.name.trim(),
-      billing_contact_name: newCompany.billingContactName || null,
-      billing_email: newCompany.billingEmail || null,
-      phone: newCompany.phone || null,
-      notes: newCompany.notes || null,
-      is_active: true,
-    });
+    const { data, error } = await supabase
+      .from('companies')
+      .insert({
+        name: newCompany.name.trim(),
+        billing_contact_name: newCompany.billingContactName.trim() || null,
+        billing_email: newCompany.billingEmail.trim().toLowerCase() || null,
+        phone: newCompany.phone.trim() || null,
+        notes: newCompany.notes.trim() || null,
+        is_active: true,
+      })
+      .select('id, name, billing_contact_name, billing_email, phone, notes, is_active, created_at')
+      .single();
 
     if (error) {
       setErrorMessage(error.message);
@@ -192,6 +228,17 @@ export default function AdminCompaniesScreen() {
       return;
     }
 
+    setCompanies((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)));
+    setDrafts((current) => ({
+      ...current,
+      [data.id]: {
+        name: data.name,
+        billingContactName: data.billing_contact_name || '',
+        billingEmail: data.billing_email || '',
+        phone: data.phone || '',
+        notes: data.notes || '',
+      },
+    }));
     setNewCompany({
       name: '',
       billingContactName: '',
@@ -202,7 +249,6 @@ export default function AdminCompaniesScreen() {
 
     setMessage(`Company ${newCompany.name.trim()} created successfully.`);
     setSubmitting(false);
-    await loadCompanies();
   };
 
   const handleSaveCompany = async (companyId: string) => {
@@ -212,20 +258,31 @@ export default function AdminCompaniesScreen() {
       return;
     }
 
+
+    if (
+      draft.billingEmail.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.billingEmail.trim())
+    ) {
+      setErrorMessage('Enter a valid billing email address.');
+      return;
+    }
+
     setSavingCompanyId(companyId);
     setMessage('');
     setErrorMessage('');
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('companies')
       .update({
         name: draft.name.trim(),
-        billing_contact_name: draft.billingContactName || null,
-        billing_email: draft.billingEmail || null,
-        phone: draft.phone || null,
-        notes: draft.notes || null,
+        billing_contact_name: draft.billingContactName.trim() || null,
+        billing_email: draft.billingEmail.trim().toLowerCase() || null,
+        phone: draft.phone.trim() || null,
+        notes: draft.notes.trim() || null,
       })
-      .eq('id', companyId);
+      .eq('id', companyId)
+      .select('id, name, billing_contact_name, billing_email, phone, notes, is_active, created_at')
+      .single();
 
     if (error) {
       setErrorMessage(error.message);
@@ -234,21 +291,46 @@ export default function AdminCompaniesScreen() {
     }
 
     setMessage(`Company ${draft.name.trim()} saved successfully.`);
+    setCompanies((current) =>
+      current
+        .map((company) => (company.id === companyId ? data : company))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    );
+    setDrafts((current) => ({
+      ...current,
+      [companyId]: {
+        name: data.name,
+        billingContactName: data.billing_contact_name || '',
+        billingEmail: data.billing_email || '',
+        phone: data.phone || '',
+        notes: data.notes || '',
+      },
+    }));
     setSavingCompanyId(null);
-    await loadCompanies();
   };
 
   const handleToggleCompany = async (row: CompanyRow) => {
+    if (
+      row.is_active &&
+      !window.confirm(
+        `Deactivate ${row.name}? Existing records remain intact, but the company will be marked inactive.`
+      )
+    ) {
+      return;
+    }
+
     setTogglingCompanyId(row.id);
     setMessage('');
     setErrorMessage('');
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('companies')
       .update({
         is_active: !row.is_active,
       })
-      .eq('id', row.id);
+      .eq('id', row.id)
+      .select('id, name, billing_contact_name, billing_email, phone, notes, is_active, created_at')
+      .single();
 
     if (error) {
       setErrorMessage(error.message);
@@ -259,26 +341,14 @@ export default function AdminCompaniesScreen() {
     setMessage(
       `Company ${row.name} ${row.is_active ? 'deactivated' : 'activated'} successfully.`
     );
+    setCompanies((current) =>
+      current.map((company) => (company.id === row.id ? data : company))
+    );
     setTogglingCompanyId(null);
-    await loadCompanies();
   };
 
   if (sessionLoading || loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          backgroundColor: '#F8FAFC',
-        }}
-      >
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <CircularProgress />
-          <Typography color="text.secondary">Loading companies admin...</Typography>
-        </Stack>
-      </Box>
-    );
+    return <PageSkeleton label="Loading companies" />;
   }
 
   if (!profile || profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') {
@@ -289,18 +359,22 @@ export default function AdminCompaniesScreen() {
     <AppShell
       title="Company Management"
       subtitle="Create, update, and manage active partner companies"
-      navItems={adminNavItems}
+      navItems={adminNavigation}
     >
       <Stack spacing={3}>
         {message ? <Alert severity="success">{message}</Alert> : null}
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+        {errorMessage ? (
+          <Alert severity="error" action={<Button color="inherit" onClick={() => void loadCompanies()}>Retry</Button>}>
+            {errorMessage}
+          </Alert>
+        ) : null}
 
         <StatsGrid>
           <StatCard>
             <Typography variant="body2" color="text.secondary">
               Total Companies
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.total}
             </Typography>
           </StatCard>
@@ -309,7 +383,7 @@ export default function AdminCompaniesScreen() {
             <Typography variant="body2" color="text.secondary">
               Active
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.active}
             </Typography>
           </StatCard>
@@ -318,7 +392,7 @@ export default function AdminCompaniesScreen() {
             <Typography variant="body2" color="text.secondary">
               Inactive
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.inactive}
             </Typography>
           </StatCard>
@@ -327,7 +401,7 @@ export default function AdminCompaniesScreen() {
             <Typography variant="body2" color="text.secondary">
               With Billing Email
             </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+            <Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
               {stats.withBillingEmail}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -338,7 +412,7 @@ export default function AdminCompaniesScreen() {
 
         <PageGrid>
           <SectionCard>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
               Create New Company
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -370,6 +444,7 @@ export default function AdminCompaniesScreen() {
 
               <StyledTextField
                 label="Billing Email"
+                type="email"
                 value={newCompany.billingEmail}
                 onChange={(e) =>
                   setNewCompany((prev) => ({
@@ -423,25 +498,35 @@ export default function AdminCompaniesScreen() {
           </SectionCard>
 
           <SectionCard>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              Existing Companies
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+              Existing Companies · {filteredCompanies.length} {filteredCompanies.length === 1 ? 'company' : 'companies'}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Update company profile data or activate and deactivate partner records.
             </Typography>
 
-            {companies.length === 0 ? (
+            <StyledTextField
+              label="Search companies"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              fullWidth
+              sx={{ mt: 2 }}
+            />
+
+            {filteredCompanies.length === 0 ? (
               <EmptyWrap>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  No companies found
+                <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
+                  {companies.length === 0 ? 'No companies found' : 'No matching companies'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Create your first company to begin onboarding users and addresses.
+                  {companies.length === 0
+                    ? 'Create your first company to begin onboarding users and addresses.'
+                    : 'Try a different company, contact, email, or phone.'}
                 </Typography>
               </EmptyWrap>
             ) : (
-              <ListWrap>
-                {companies.map((row) => (
+              <ListWrap className="record-results">
+                {filteredCompanies.map((row) => (
                   <CompanyCard key={row.id}>
                     <Stack
                       direction={{ xs: 'column', sm: 'row' }}
@@ -452,7 +537,7 @@ export default function AdminCompaniesScreen() {
                       spacing={1.5}
                     >
                       <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
                           {row.name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -534,6 +619,7 @@ export default function AdminCompaniesScreen() {
 
                       <StyledTextField
                         label="Billing Email"
+                        type="email"
                         value={drafts[row.id]?.billingEmail || ''}
                         onChange={(e) =>
                           setDrafts((prev) => ({
