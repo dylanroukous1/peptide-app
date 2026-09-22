@@ -16,6 +16,7 @@ import { supabase } from '@/src/supabase/client';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { userNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   AddressFormGrid,
   EmptyWrap,
@@ -91,6 +92,10 @@ export default function UserDashboardScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState<OrderReceipt | null>(null);
+  const [productSearch, setProductSearch] = useSessionStorageState(
+    'customer-order-product-search',
+    ''
+  );
 
   const loadOrderingData = useCallback(async () => {
     if (!profile) return;
@@ -148,6 +153,11 @@ export default function UserDashboardScreen() {
     () => peptides.find((peptide) => peptide.id === selectedPeptideId) || null,
     [peptides, selectedPeptideId]
   );
+  const filteredPeptides = useMemo(() => {
+    const query = productSearch.trim().toLowerCase();
+    if (!query) return peptides;
+    return peptides.filter((peptide) => peptide.name.toLowerCase().includes(query));
+  }, [peptides, productSearch]);
   const parsedQuantity = Number(quantity);
   const validQuantity = Number.isInteger(parsedQuantity) && parsedQuantity > 0;
   const estimatedTotal = validQuantity
@@ -301,12 +311,31 @@ export default function UserDashboardScreen() {
         ) : (
           <OrderGrid>
             <SectionCard>
-              <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Product catalog</Typography>
+              <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+                Product catalog · {filteredPeptides.length} {filteredPeptides.length === 1 ? 'product' : 'products'}
+              </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 Prices shown are current defaults; the database snapshots the authoritative price at submission.
               </Typography>
+              <StyledTextField
+                label="Search products"
+                value={productSearch}
+                onChange={(event) => setProductSearch(event.target.value)}
+                fullWidth
+                sx={{ mt: 2 }}
+              />
+              {filteredPeptides.length === 0 ? (
+                <EmptyWrap sx={{ mt: 2, p: 3 }}>
+                  <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
+                    No matching products
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                    Try a different peptide name.
+                  </Typography>
+                </EmptyWrap>
+              ) : (
               <ProductList className="record-results">
-                {peptides.map((peptide) => (
+                {filteredPeptides.map((peptide) => (
                   <ProductCard key={peptide.id} selected={peptide.id === selectedPeptideId}>
                     <Typography variant="body1" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{peptide.name}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{money(peptide.default_unit_price)} / vial</Typography>
@@ -323,6 +352,7 @@ export default function UserDashboardScreen() {
                   </ProductCard>
                 ))}
               </ProductList>
+              )}
             </SectionCard>
 
             <form onSubmit={submitOrder} noValidate style={{ minWidth: 0 }}>

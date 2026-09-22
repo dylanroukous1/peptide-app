@@ -311,3 +311,13 @@ test('login synchronizes the shared profile before first navigation and announce
   assert.match(login, /dbProfile\.role === 'ADMIN' \? '\/admin\/orders' : '\/dashboard'/);
   assert.doesNotMatch(login, /router\.refresh\(\)/);
 });
+
+test('customer order catalog supports persisted case-insensitive product search', () => {
+  const orderScreen = read('src/screens/UserDashboardScreen/index.tsx');
+  assert.match(orderScreen, /customer-order-product-search/);
+  assert.match(orderScreen, /productSearch\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(orderScreen, /peptide\.name\.toLowerCase\(\)\.includes\(query\)/);
+  assert.match(orderScreen, /label="Search products"/);
+  assert.match(orderScreen, /No matching products/);
+  assert.match(orderScreen, /filteredPeptides\.map/);
+});
