@@ -309,4 +309,6 @@ test('login synchronizes the shared profile before first navigation and announce
   assert.match(login, /open=\{submitting\}/);
   assert.match(login, /Signing you in…/);
   assert.match(login, /role="status"/);
+  assert.match(login, /dbProfile\.role === 'ADMIN' \? '\/admin\/orders' : '\/dashboard'/);
+  assert.doesNotMatch(login, /router\.refresh\(\)/);
 });

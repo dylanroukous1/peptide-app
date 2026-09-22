@@ -38,7 +38,7 @@ export default function LoginScreen() {
     if (!profile) return;
     if (profile.account_status !== 'ACTIVE') return;
 
-    router.replace(profile.role === 'ADMIN' ? '/admin' : '/dashboard');
+    router.replace(profile.role === 'ADMIN' ? '/admin/orders' : '/dashboard');
   }, [profile, sessionLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -78,8 +78,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace(dbProfile.role === 'ADMIN' ? '/admin' : '/dashboard');
-    router.refresh();
+    router.replace(dbProfile.role === 'ADMIN' ? '/admin/orders' : '/dashboard');
   };
 
   if (sessionLoading) {
