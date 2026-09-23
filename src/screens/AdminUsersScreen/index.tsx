@@ -10,7 +10,6 @@ import {
   IconButton,
   InputAdornment,
   MenuItem,
-  Snackbar,
   Stack,
   Typography,
 } from '@mui/material';
@@ -23,6 +22,8 @@ import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
+import AppSnackbar from '@/src/commons/AppSnackBar';
+import { useAppToast } from '@/src/hooks/useAppToast';
 import { singleRelation } from '@/src/lib/supabase/relations';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
@@ -102,7 +103,6 @@ export default function AdminUsersScreen() {
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [requests, setRequests] = useState<AccountRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [filters, setFilters] = useSessionStorageState('admin-user-filters', {
     search: '',
@@ -111,9 +111,7 @@ export default function AdminUsersScreen() {
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [creatingUser, setCreatingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [toastOpen, setToastOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastSeverity, setToastSeverity] = useState<'success' | 'error'>('success');
+  const { toast, showToast, closeToast } = useAppToast();
   const [drafts, setDrafts] = useState<Record<string, UserDraft>>({});
   const [createDraft, setCreateDraft] = useState<CreateDraftState>({
     email: '',
@@ -258,7 +256,6 @@ export default function AdminUsersScreen() {
     }
 
     setSavingUserId(user.id);
-    setMessage('');
     setErrorMessage('');
 
     const payload = {
@@ -270,12 +267,12 @@ export default function AdminUsersScreen() {
     const { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setSavingUserId(null);
       return;
     }
 
-    setMessage(`User ${user.email || user.id} saved successfully.`);
+    showToast(`User ${user.email || user.id} saved successfully.`);
     setUsers((current) =>
       current.map((item) =>
         item.id === user.id
@@ -329,7 +326,6 @@ export default function AdminUsersScreen() {
     }
 
     setCreatingUser(true);
-    setMessage('');
     setErrorMessage('');
 
     const {
@@ -337,10 +333,7 @@ export default function AdminUsersScreen() {
     } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
-      setErrorMessage('Your session expired. Please log in again.');
-      setToastSeverity('error');
-      setToastMessage('Your session expired. Please log in again.');
-      setToastOpen(true);
+      showToast('Your session expired. Please log in again.', 'error');
       setCreatingUser(false);
       return;
     }
@@ -365,10 +358,7 @@ export default function AdminUsersScreen() {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      setErrorMessage(payload.error || 'Failed to create user.');
-      setToastSeverity('error');
-      setToastMessage(payload.error || 'Failed to create user.');
-      setToastOpen(true);
+      showToast(payload.error || 'Failed to create user.', 'error');
       setCreatingUser(false);
       return;
     }
@@ -378,10 +368,7 @@ export default function AdminUsersScreen() {
       ? `User created successfully. Share this email and password with the user: ${payload.email} / ${finalPassword}`
       : `User created successfully. Share this email with the user: ${payload.email}`;
 
-    setMessage(successMessage);
-    setToastSeverity('success');
-    setToastMessage(successMessage);
-    setToastOpen(true);
+    showToast(successMessage);
     setCreateDraft({
       email: '',
       firstName: '',
@@ -429,8 +416,9 @@ export default function AdminUsersScreen() {
       companyId: matchedCompanyId,
       accountStatus: 'PENDING',
     }));
-    setMessage(
-      `Prefilled create form from request by ${request.first_name} ${request.last_name}.`
+    showToast(
+      `Prefilled create form from request by ${request.first_name} ${request.last_name}.`,
+      'info'
     );
   };
 
@@ -445,7 +433,6 @@ export default function AdminUsersScreen() {
   return (
     <AppShell title="User Management" subtitle="Create accounts, manage roles, and assign companies" navItems={adminNavigation}>
       <Stack spacing={3}>
-        {message ? <Alert severity="success">{message}</Alert> : null}
         {errorMessage ? (
           <Alert severity="error" action={<Button color="inherit" onClick={() => void loadUsers()}>Retry</Button>}>
             {errorMessage}
@@ -756,22 +743,6 @@ export default function AdminUsersScreen() {
           </CreateUserForm>
         </SectionCard>
 
-        <Snackbar
-          open={toastOpen}
-          autoHideDuration={6000}
-          onClose={() => setToastOpen(false)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          <Alert
-            severity={toastSeverity}
-            onClose={() => setToastOpen(false)}
-            variant="filled"
-            sx={{ width: '100%' }}
-          >
-            {toastMessage}
-          </Alert>
-        </Snackbar>
-
         <SectionCard>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
             Existing Users
@@ -970,6 +941,7 @@ export default function AdminUsersScreen() {
           )}
         </SectionCard>
       </Stack>
+      <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );
 }

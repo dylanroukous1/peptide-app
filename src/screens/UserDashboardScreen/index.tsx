@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import CloseIcon from '@mui/icons-material/Close';
@@ -22,6 +21,8 @@ import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { userNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
+import AppSnackbar from '@/src/commons/AppSnackBar';
+import { useAppToast } from '@/src/hooks/useAppToast';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   loadCustomerOrderingData,
@@ -99,11 +100,11 @@ export default function UserDashboardScreen() {
   const [savingAddress, setSavingAddress] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [formError, setFormError] = useState('');
-  const [success, setSuccess] = useState<OrderReceipt | null>(null);
   const [mobileReviewOpen, setMobileReviewOpen] = useState(false);
   const [productSearch, setProductSearch] = useSessionStorageState('customer-order-product-search', '');
   const submittingRef = useRef(false);
   const workspaceLoadedRef = useRef(initialWorkspace !== null);
+  const { toast, showToast, closeToast } = useAppToast();
 
   useEffect(() => {
     if (!mobileReviewOpen) return;
@@ -178,7 +179,6 @@ export default function UserDashboardScreen() {
   const canSubmit = Boolean(profile?.company_id && addressId && allSkuMinimumsMet && orderMinimumMet && !submitting);
 
   const addProduct = (peptideId: string) => {
-    setSuccess(null);
     setItems((current) => current.some((item) => item.peptideId === peptideId)
       ? current
       : [...current, { peptideId, quantity: String(SKU_MINIMUM) }]);
@@ -219,7 +219,7 @@ export default function UserDashboardScreen() {
       .select('id, label, recipient_name, line1, line2, city, state, postal_code, country, is_default')
       .single();
     if (error) {
-      setFormError(error.message);
+      showToast(error.message, 'error');
       setSavingAddress(false);
       return;
     }
@@ -228,13 +228,13 @@ export default function UserDashboardScreen() {
     setAddressDraft(emptyAddress);
     setShowAddressForm(false);
     setSavingAddress(false);
+    showToast('Shipping address saved and selected.');
   };
 
   const submitOrder = async (event: React.FormEvent) => {
     event.preventDefault();
     if (submittingRef.current) return;
     setFormError('');
-    setSuccess(null);
     if (!canSubmit) {
       setFormError('Every product requires at least 250 vials and the complete order requires at least 2,000 vials.');
       return;
@@ -249,16 +249,21 @@ export default function UserDashboardScreen() {
       })
       .single();
     if (error) {
-      setFormError(error.message);
+      showToast(error.message, 'error');
       submittingRef.current = false;
       setSubmitting(false);
       return;
     }
-    setSuccess(data as OrderReceipt);
+    const receipt = data as OrderReceipt;
+    setFormError('');
     setItems([]);
     setNotes('');
     submittingRef.current = false;
     setSubmitting(false);
+    setMobileReviewOpen(false);
+    showToast(
+      `Order ${receipt.order_number} submitted: ${receipt.item_count} products, ${Number(receipt.total_quantity).toLocaleString('en-US')} vials, ${money(receipt.total_price)}.`
+    );
     router.prefetch('/my-orders');
   };
 
@@ -388,9 +393,8 @@ export default function UserDashboardScreen() {
                 ) : null}
                 <StyledTextField label="Order notes (optional)" value={notes} onChange={(event) => setNotes(event.target.value)} multiline minRows={3} />
                 {!allSkuMinimumsMet && items.length > 0 ? <Alert severity="warning">Every product must contain at least 250 vials.</Alert> : null}
-                {!orderMinimumMet ? <Alert severity="warning">Add {(ORDER_MINIMUM - totalQuantity).toLocaleString('en-US')} more vials to reach the order minimum.</Alert> : null}
+                {items.length > 0 && !orderMinimumMet ? <Alert severity="warning">Add {(ORDER_MINIMUM - totalQuantity).toLocaleString('en-US')} more vials to reach the order minimum.</Alert> : null}
                 {formError ? <Alert severity="error" role="alert">{formError}</Alert> : null}
-                {success ? <Alert severity="success" role="status">Order <strong>{success.order_number}</strong> was submitted with {success.item_count} products and {Number(success.total_quantity).toLocaleString('en-US')} vials for {money(success.total_price)}. <Link href={`/my-orders#order-${success.order_id}`}>Open order in history</Link>.</Alert> : null}
                 <Button type="submit" variant="contained" size="large" disabled={!canSubmit} sx={{ minHeight: 48 }}>
                   {submitting ? <><CircularProgress size={19} color="inherit" sx={{ mr: 1 }} />Submitting order…</> : 'Submit order'}
                 </Button>
@@ -415,6 +419,7 @@ export default function UserDashboardScreen() {
           </MobileReviewBar>
         ) : null}
       </Stack>
+      <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );
 }

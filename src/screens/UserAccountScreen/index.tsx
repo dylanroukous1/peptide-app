@@ -17,6 +17,8 @@ import { supabase } from '@/src/supabase/client';
 import { userNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
+import AppSnackbar from '@/src/commons/AppSnackBar';
+import { useAppToast } from '@/src/hooks/useAppToast';
 import {
   AddressCard,
   AddressList,
@@ -61,9 +63,9 @@ export default function UserAccountScreen() {
   const [addresses, setAddresses] = useState<AddressRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [retryKey, setRetryKey] = useState(0);
+  const { toast, showToast, closeToast } = useAppToast();
 
   const [draft, setDraft] = useState({
     label: '',
@@ -161,7 +163,6 @@ export default function UserAccountScreen() {
     }
 
     setSubmitting(true);
-    setMessage('');
     setErrorMessage('');
 
     const { data, error } = await supabase
@@ -184,7 +185,7 @@ export default function UserAccountScreen() {
       .single();
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setSubmitting(false);
       return;
     }
@@ -200,7 +201,7 @@ export default function UserAccountScreen() {
       postal_code: '',
       country: 'USA',
     });
-    setMessage('Shipping address added successfully.');
+    showToast('Shipping address added successfully.');
     setSubmitting(false);
   };
 
@@ -219,7 +220,6 @@ export default function UserAccountScreen() {
       navItems={userNavigation}
     >
       <Stack spacing={3}>
-        {message ? <Alert severity="success">{message}</Alert> : null}
         {errorMessage ? (
           <Alert severity="error" action={<Button color="inherit" onClick={() => setRetryKey((key) => key + 1)}>Retry</Button>}>
             {errorMessage}
@@ -437,6 +437,7 @@ export default function UserAccountScreen() {
           </SectionCard>
         </PageGrid>
       </Stack>
+      <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );
 }

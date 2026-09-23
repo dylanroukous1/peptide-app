@@ -11,6 +11,8 @@ import {
   Typography,
 } from '@mui/material';
 import { supabase } from '@/src/supabase/client';
+import AppSnackbar from '@/src/commons/AppSnackBar';
+import { useAppToast } from '@/src/hooks/useAppToast';
 import {
   ContentWrap,
   InfoTile,
@@ -29,13 +31,12 @@ export default function AccessRequestScreen() {
   const [companyName, setCompanyName] = useState('');
   const [notes, setNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { toast, showToast, closeToast } = useAppToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    setSuccessMessage('');
 
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
       setErrorMessage('Please fill in the required fields.');
@@ -58,12 +59,12 @@ export default function AccessRequestScreen() {
     });
 
     if (error) {
-      setErrorMessage(error.message || 'Failed to submit request.');
+      showToast(error.message || 'Failed to submit request.', 'error');
       setSubmitting(false);
       return;
     }
 
-    setSuccessMessage('Your request has been submitted. An admin will review it.');
+    showToast('Your request has been submitted. An admin will review it.');
     setFirstName('');
     setLastName('');
     setEmail('');
@@ -128,7 +129,6 @@ export default function AccessRequestScreen() {
             <StyledTextField label="Company Name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} fullWidth />
             <StyledTextField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} fullWidth multiline minRows={3} />
             {errorMessage ? <Alert id="access-request-error" severity="error">{errorMessage}</Alert> : null}
-            {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
             <Button type="submit" variant="contained" size="large" disabled={submitting} sx={{ mt: 1, minHeight: 52, borderRadius: 4, textTransform: 'none', fontWeight: 700 }} fullWidth>
               {submitting ? <CircularProgress size={22} color="inherit" /> : 'Submit Request'}
             </Button>
@@ -141,6 +141,7 @@ export default function AccessRequestScreen() {
           </RequestForm>
         </RequestCard>
       </ContentWrap>
+      <AppSnackbar {...toast} onClose={closeToast} />
     </PageRoot>
   );
 }

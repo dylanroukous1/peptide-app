@@ -17,6 +17,8 @@ import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
+import AppSnackbar from '@/src/commons/AppSnackBar';
+import { useAppToast } from '@/src/hooks/useAppToast';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   ActionsGrid,
@@ -61,12 +63,12 @@ export default function AdminPeptidesScreen() {
 
   const [peptides, setPeptides] = useState<PeptideRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [savingPeptideId, setSavingPeptideId] = useState<string | null>(null);
   const [togglingPeptideId, setTogglingPeptideId] = useState<string | null>(null);
   const [search, setSearch] = useSessionStorageState('admin-peptide-search', '');
+  const { toast, showToast, closeToast } = useAppToast();
 
   const [newPeptide, setNewPeptide] = useState({
     name: '',
@@ -164,7 +166,6 @@ export default function AdminPeptidesScreen() {
     }
 
     setSubmitting(true);
-    setMessage('');
     setErrorMessage('');
 
     const { data, error } = await supabase
@@ -178,7 +179,7 @@ export default function AdminPeptidesScreen() {
       .single();
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setSubmitting(false);
       return;
     }
@@ -189,7 +190,7 @@ export default function AdminPeptidesScreen() {
       ...current,
       [data.id]: { name: data.name, defaultUnitPrice: String(data.default_unit_price) },
     }));
-    setMessage(`Peptide ${trimmedName} created successfully.`);
+    showToast(`Peptide ${trimmedName} created successfully.`);
     setSubmitting(false);
   };
 
@@ -204,7 +205,6 @@ export default function AdminPeptidesScreen() {
     }
 
     setSavingPeptideId(peptideId);
-    setMessage('');
     setErrorMessage('');
 
     const { data, error } = await supabase
@@ -218,12 +218,12 @@ export default function AdminPeptidesScreen() {
       .single();
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setSavingPeptideId(null);
       return;
     }
 
-    setMessage(`Peptide ${trimmedName} saved successfully.`);
+    showToast(`Peptide ${trimmedName} saved successfully.`);
     setPeptides((current) =>
       current
         .map((item) => (item.id === peptideId ? data : item))
@@ -241,7 +241,6 @@ export default function AdminPeptidesScreen() {
     }
 
     setTogglingPeptideId(row.id);
-    setMessage('');
     setErrorMessage('');
 
     const { data, error } = await supabase
@@ -254,12 +253,12 @@ export default function AdminPeptidesScreen() {
       .single();
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setTogglingPeptideId(null);
       return;
     }
 
-    setMessage(
+    showToast(
       `Peptide ${row.name} ${row.is_active ? 'deactivated' : 'activated'} successfully.`
     );
     setPeptides((current) => current.map((item) => (item.id === row.id ? data : item)));
@@ -281,7 +280,6 @@ export default function AdminPeptidesScreen() {
       navItems={adminNavigation}
     >
       <Stack spacing={3}>
-        {message ? <Alert severity="success">{message}</Alert> : null}
         {errorMessage ? (
           <Alert severity="error" action={<Button color="inherit" onClick={() => void loadPeptides()}>Retry</Button>}>
             {errorMessage}
@@ -541,6 +539,7 @@ export default function AdminPeptidesScreen() {
           </SectionCard>
         </PageGrid>
       </Stack>
+      <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );
 }

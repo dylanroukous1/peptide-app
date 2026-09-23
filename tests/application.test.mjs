@@ -162,7 +162,7 @@ test('multi-item submission snapshots active database prices and inserts atomica
   assert.match(sql, /insert into public\.orders[\s\S]*insert into public\.order_items/);
   assert.match(sql, /v_total_price[\s\S]*'SUBMITTED'/);
   assert.match(orderForm, /\.rpc\('submit_multi_product_order'/);
-  assert.match(orderForm, /Open order in history/);
+  assert.match(orderForm, /showToast\([\s\S]*Order \$\{receipt\.order_number\} submitted/);
 });
 
 test('multi-order RPC enforces exact MOQ boundaries and rejects invalid quantities', () => {
@@ -268,7 +268,7 @@ test('responsive order builder supports search, addresses, review, progress, and
   assert.match(orderForm, /\.from\('company_addresses'\)[\s\S]*\.insert/);
   assert.match(orderForm, /Order minimum progress/);
   assert.match(orderForm, /disabled=\{!canSubmit\}/);
-  assert.match(orderForm, /role="status"/);
+  assert.match(orderForm, /<AppSnackbar \{\.\.\.toast\} onClose=\{closeToast\}/);
   assert.match(styles, /breakpoints\.down\('lg'\)[\s\S]*gridTemplateColumns: '1fr'/);
   assert.match(styles, /breakpoints\.down\('sm'\)/);
   assert.match(orderForm, /data-mobile-open=\{mobileReviewOpen \? 'true' : 'false'\}/);
@@ -287,6 +287,29 @@ test('mobile order cards constrain and wrap long identifiers without changing de
     assert.match(styles, /overflowWrap: 'anywhere'/);
     assert.match(styles, /wordBreak: 'break-word'/);
     assert.match(styles, /minWidth: 0/);
+  }
+});
+
+test('mutation feedback uses shared toasts and order success cannot show an empty-draft warning', () => {
+  const orderForm = read('src/screens/UserDashboardScreen/index.tsx');
+  const snackbar = read('src/commons/AppSnackBar/index.tsx');
+  const toastHook = read('src/hooks/useAppToast.ts');
+  const mutationScreens = [
+    'src/screens/AdminOrdersScreen/index.tsx',
+    'src/screens/AdminPeptidesScreen/index.tsx',
+    'src/screens/AdminCompaniesScreen/index.tsx',
+    'src/screens/AdminUsersScreen/index.tsx',
+    'src/screens/UserAccountScreen/index.tsx',
+    'src/screens/AccessRequestScreen/index.tsx',
+  ].map(read);
+
+  assert.match(orderForm, /items\.length > 0 && !orderMinimumMet/);
+  assert.doesNotMatch(orderForm, /severity="success" role="status"/);
+  assert.match(orderForm, /setFormError\(''\)[\s\S]*setItems\(\[\]\)[\s\S]*showToast/);
+  assert.match(snackbar, /anchorOrigin=\{\{ vertical: 'top', horizontal: 'center' \}\}/);
+  assert.match(toastHook, /setToast\(\{ open: true, message, severity \}\)/);
+  for (const screen of mutationScreens) {
+    assert.match(screen, /<AppSnackbar \{\.\.\.toast\} onClose=\{closeToast\}/);
   }
 });
 

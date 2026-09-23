@@ -17,6 +17,8 @@ import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
+import AppSnackbar from '@/src/commons/AppSnackBar';
+import { useAppToast } from '@/src/hooks/useAppToast';
 import { useUnsavedChanges } from '@/src/hooks/useUnsavedChanges';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
@@ -58,12 +60,12 @@ export default function AdminCompaniesScreen() {
 
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [savingCompanyId, setSavingCompanyId] = useState<string | null>(null);
   const [togglingCompanyId, setTogglingCompanyId] = useState<string | null>(null);
   const [search, setSearch] = useSessionStorageState('admin-company-search', '');
+  const { toast, showToast, closeToast } = useAppToast();
 
   const [newCompany, setNewCompany] = useState({
     name: '',
@@ -207,7 +209,6 @@ export default function AdminCompaniesScreen() {
     }
 
     setSubmitting(true);
-    setMessage('');
     setErrorMessage('');
 
     const { data, error } = await supabase
@@ -224,7 +225,7 @@ export default function AdminCompaniesScreen() {
       .single();
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setSubmitting(false);
       return;
     }
@@ -248,7 +249,7 @@ export default function AdminCompaniesScreen() {
       notes: '',
     });
 
-    setMessage(`Company ${newCompany.name.trim()} created successfully.`);
+    showToast(`Company ${newCompany.name.trim()} created successfully.`);
     setSubmitting(false);
   };
 
@@ -269,7 +270,6 @@ export default function AdminCompaniesScreen() {
     }
 
     setSavingCompanyId(companyId);
-    setMessage('');
     setErrorMessage('');
 
     const { data, error } = await supabase
@@ -286,12 +286,12 @@ export default function AdminCompaniesScreen() {
       .single();
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setSavingCompanyId(null);
       return;
     }
 
-    setMessage(`Company ${draft.name.trim()} saved successfully.`);
+    showToast(`Company ${draft.name.trim()} saved successfully.`);
     setCompanies((current) =>
       current
         .map((company) => (company.id === companyId ? data : company))
@@ -321,7 +321,6 @@ export default function AdminCompaniesScreen() {
     }
 
     setTogglingCompanyId(row.id);
-    setMessage('');
     setErrorMessage('');
 
     const { data, error } = await supabase
@@ -334,12 +333,12 @@ export default function AdminCompaniesScreen() {
       .single();
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setTogglingCompanyId(null);
       return;
     }
 
-    setMessage(
+    showToast(
       `Company ${row.name} ${row.is_active ? 'deactivated' : 'activated'} successfully.`
     );
     setCompanies((current) =>
@@ -363,7 +362,6 @@ export default function AdminCompaniesScreen() {
       navItems={adminNavigation}
     >
       <Stack spacing={3}>
-        {message ? <Alert severity="success">{message}</Alert> : null}
         {errorMessage ? (
           <Alert severity="error" action={<Button color="inherit" onClick={() => void loadCompanies()}>Retry</Button>}>
             {errorMessage}
@@ -722,6 +720,7 @@ export default function AdminCompaniesScreen() {
           </SectionCard>
         </PageGrid>
       </Stack>
+      <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );
 }

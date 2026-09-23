@@ -18,6 +18,8 @@ import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
+import AppSnackbar from '@/src/commons/AppSnackBar';
+import { useAppToast } from '@/src/hooks/useAppToast';
 import {
   loadAdminOrders,
   type AdminOrder as OrderRow,
@@ -75,7 +77,6 @@ export default function AdminOrdersScreen() {
       : null;
   const [orders, setOrders] = useState<OrderRow[] | null>(() => initialOrders);
   const [loading, setLoading] = useState(initialOrders === null);
-  const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [filters, setFilters] = useSessionStorageState('admin-order-filters', {
     search: '',
@@ -85,6 +86,7 @@ export default function AdminOrdersScreen() {
     Object.fromEntries((initialOrders || []).map((order) => [order.id, order.status]))
   );
   const [submittingOrderId, setSubmittingOrderId] = useState<string | null>(null);
+  const { toast, showToast, closeToast } = useAppToast();
 
   const loadOrders = async () => {
     setLoading(true);
@@ -188,13 +190,11 @@ export default function AdminOrdersScreen() {
       | 'EXPIRED';
 
     if (!nextStatus || nextStatus === order.status) {
-      setMessage('No status change to save.');
+      showToast('Choose a different status before saving.', 'info');
       return;
     }
 
     setSubmittingOrderId(order.id);
-    setMessage('');
-    setErrorMessage('');
 
     const { error } = await supabase.rpc('admin_update_order_status', {
       p_order_id: order.id,
@@ -202,12 +202,12 @@ export default function AdminOrdersScreen() {
     });
 
     if (error) {
-      setErrorMessage(error.message);
+      showToast(error.message, 'error');
       setSubmittingOrderId(null);
       return;
     }
 
-    setMessage(`Order ${order.order_number} updated to ${nextStatus}.`);
+    showToast(`Order ${order.order_number} updated to ${nextStatus.replaceAll('_', ' ')}.`);
     setOrders((current) =>
       current
         ? current.map((item) =>
@@ -243,7 +243,6 @@ export default function AdminOrdersScreen() {
       navItems={adminNavigation}
     >
       <Stack spacing={3}>
-        {message ? <Alert severity="success">{message}</Alert> : null}
         {errorMessage ? (
           <Alert severity="error" action={<Button color="inherit" onClick={() => void loadOrders()}>Retry</Button>}>
             {errorMessage}
@@ -536,6 +535,7 @@ export default function AdminOrdersScreen() {
           )}
         </SectionCard>
       </Stack>
+      <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );
 }

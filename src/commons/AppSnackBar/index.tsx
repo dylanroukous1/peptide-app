@@ -20,7 +20,7 @@ export default function AppSnackbar({
       open={open}
       autoHideDuration={3500}
       onClose={onClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
     >
       <Alert
         onClose={onClose}
@@ -29,7 +29,8 @@ export default function AppSnackbar({
         role={severity === 'error' ? 'alert' : 'status'}
         sx={{
           width: '100%',
-          minWidth: { xs: 280, sm: 360 },
+          minWidth: { xs: 0, sm: 360 },
+          maxWidth: { xs: 'calc(100vw - 24px)', sm: 560 },
           justifyContent: 'center',
           textAlign: 'center',
           borderRadius: 3,
