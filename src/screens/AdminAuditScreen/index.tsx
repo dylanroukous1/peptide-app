@@ -9,6 +9,7 @@ import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { singleRelation } from '@/src/lib/supabase/relations';
 import {
   type AuditReferences,
@@ -246,13 +247,18 @@ export default function AdminAuditScreen() {
         <PageGrid>
           <SectionCard>
             <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
-              Operational Activity · {filteredAuditLogs.length}
+              Operational Activity
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Who acted, what changed, which record was affected and when.</Typography>
             {filteredAuditLogs.length === 0 ? (
               <EmptyWrap><Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>No matching activity</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Try a different person, order, product, company or action.</Typography></EmptyWrap>
             ) : (
-              <ListWrap className="record-results">
+              <ScrollableResults
+                containerComponent={ListWrap}
+                count={filteredAuditLogs.length}
+                label="Operational activity"
+                singularLabel="event"
+              >
                 {filteredAuditLogs.map((row) => (
                   <LogCard key={row.id}>
                     <Typography component="h3" variant="body1" sx={{ fontWeight: 750 }}>{formatAuditMessage(row, references)}</Typography>
@@ -271,17 +277,22 @@ export default function AdminAuditScreen() {
                     </Box>
                   </LogCard>
                 ))}
-              </ListWrap>
+              </ScrollableResults>
             )}
           </SectionCard>
 
           <SectionCard>
-            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Email Activity · {filteredEmailEvents.length}</Typography>
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Email Activity</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Messages recorded by Supplide, with related order numbers where available.</Typography>
             {filteredEmailEvents.length === 0 ? (
               <EmptyWrap><Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>No matching email activity</Typography></EmptyWrap>
             ) : (
-              <ListWrap className="record-results">
+              <ScrollableResults
+                containerComponent={ListWrap}
+                count={filteredEmailEvents.length}
+                label="Email activity"
+                singularLabel="email event"
+              >
                 {filteredEmailEvents.map((row) => (
                   <LogCard key={row.id}>
                     <Typography component="h3" variant="body1" sx={{ fontWeight: 750 }}>{humanizeAuditValue(row.type)} email sent to {row.to}.</Typography>
@@ -291,7 +302,7 @@ export default function AdminAuditScreen() {
                     </Typography>
                   </LogCard>
                 ))}
-              </ListWrap>
+              </ScrollableResults>
             )}
           </SectionCard>
         </PageGrid>

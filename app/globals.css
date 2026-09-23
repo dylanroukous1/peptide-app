@@ -93,20 +93,88 @@ pre {
 .record-results {
   max-height: min(62vh, 760px);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: #94a3b8 transparent;
+  scrollbar-color: #64748b #e2e8f0;
   padding-right: 4px;
 }
 
 .record-results::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
+}
+
+.record-results::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 999px;
 }
 
 .record-results::-webkit-scrollbar-thumb {
-  background: #94a3b8;
+  min-height: 42px;
+  background: #64748b;
+  border: 2px solid #e2e8f0;
   border-radius: 999px;
+}
+
+.record-results::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.scroll-affordance {
+  min-width: 0;
+}
+
+.scroll-affordance__summary {
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  min-height: 24px;
+  margin-top: 12px;
+}
+
+.scroll-affordance__hint {
+  padding-left: 8px;
+  border-left: 1px solid #cbd5e1;
+}
+
+.scroll-affordance__viewport-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.order-history-results {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.scroll-affordance__fade {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+
+.scroll-affordance__fade[data-visible="true"] {
+  opacity: 1;
+}
+
+.scroll-affordance__fade--bottom {
+  right: 10px;
+  bottom: 0;
+  left: 0;
+  height: 34px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(15, 23, 42, 0.13));
+}
+
+.scroll-affordance__fade--right {
+  top: 0;
+  right: 0;
+  bottom: 10px;
+  width: 34px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(15, 23, 42, 0.13));
 }
 
 .record-results thead th {
@@ -123,6 +191,15 @@ pre {
     overflow-y: visible;
     overscroll-behavior: auto;
     padding-right: 0;
+  }
+
+  .scroll-affordance__summary {
+    justify-content: flex-start;
+  }
+
+  .scroll-affordance__hint--vertical,
+  .scroll-affordance__fade--bottom {
+    display: none;
   }
 }
 

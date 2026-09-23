@@ -16,6 +16,7 @@ import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
 import { userNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import {
   AddressCard,
   AddressList,
@@ -276,7 +277,13 @@ export default function UserAccountScreen() {
                 </Typography>
               </EmptyWrap>
             ) : (
-              <AddressList className="record-results">
+              <ScrollableResults
+                containerComponent={AddressList}
+                count={addresses.length}
+                label="Saved shipping addresses"
+                singularLabel="address"
+                pluralLabel="addresses"
+              >
                 {addresses.map((address) => (
                   <AddressCard key={address.id}>
                   <Stack
@@ -311,7 +318,7 @@ export default function UserAccountScreen() {
                     </Box>
                   </AddressCard>
                 ))}
-              </AddressList>
+              </ScrollableResults>
             )}
           </SectionCard>
 

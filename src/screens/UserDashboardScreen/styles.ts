@@ -40,6 +40,11 @@ export const ProductList = styled(Box)(({ theme }) => ({
   maxHeight: 520,
   overflowY: 'auto',
   paddingRight: theme.spacing(0.5),
+  [theme.breakpoints.down('md')]: {
+    maxHeight: 'none',
+    overflowY: 'visible',
+    paddingRight: 0,
+  },
   [theme.breakpoints.down('sm')]: { gridTemplateColumns: '1fr' },
 }));
 

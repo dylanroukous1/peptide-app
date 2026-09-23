@@ -17,6 +17,7 @@ import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { singleRelation } from '@/src/lib/supabase/relations';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
@@ -353,7 +354,7 @@ export default function AdminOrdersScreen() {
 
         <SectionCard>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
-            Orders · {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'}
+            Orders
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Search by order, company, peptide, inventory reference, or user email, then update status.
@@ -397,7 +398,12 @@ export default function AdminOrdersScreen() {
               </Typography>
             </EmptyWrap>
           ) : (
-            <ListWrap className="record-results">
+            <ScrollableResults
+              containerComponent={ListWrap}
+              count={filteredOrders.length}
+              label="Order records"
+              singularLabel="order"
+            >
               {filteredOrders.map((order) => (
                 <OrderCard key={order.id}>
                   <Stack
@@ -590,7 +596,7 @@ export default function AdminOrdersScreen() {
                   </ActionsGrid>
                 </OrderCard>
               ))}
-            </ListWrap>
+            </ScrollableResults>
           )}
         </SectionCard>
       </Stack>

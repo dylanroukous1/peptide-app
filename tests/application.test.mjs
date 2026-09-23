@@ -360,11 +360,35 @@ test('peptide and company results use localized responsive scrolling', () => {
   const customerProducts = read('src/screens/UserDashboardScreen/index.tsx');
   const globals = read('app/globals.css');
 
-  assert.match(adminPeptides, /<ListWrap className="record-results">/);
-  assert.match(adminCompanies, /<ListWrap className="record-results">/);
-  assert.match(customerProducts, /<ProductList className="record-results">/);
+  assert.match(adminPeptides, /containerComponent=\{ListWrap\}/);
+  assert.match(adminCompanies, /containerComponent=\{ListWrap\}/);
+  assert.match(customerProducts, /containerComponent=\{ProductList\}/);
   assert.match(globals, /\.record-results[\s\S]*overflow-y: auto/);
   assert.match(globals, /@media \(max-width: 899px\)[\s\S]*overflow-y: visible/);
+});
+
+test('scroll affordances detect real overflow and disappear at each scroll boundary', () => {
+  const component = read('src/components/feedback/ScrollableResults/index.tsx');
+  const hook = read('src/hooks/useScrollOverflow.ts');
+  const globals = read('app/globals.css');
+
+  assert.match(hook, /scrollHeight - element\.clientHeight > 2/);
+  assert.match(hook, /scrollWidth - element\.clientWidth > 2/);
+  assert.match(hook, /element\.scrollTop \+ element\.clientHeight >= element\.scrollHeight - 2/);
+  assert.match(hook, /element\.scrollLeft \+ element\.clientWidth >= element\.scrollWidth - 2/);
+  assert.match(hook, /ResizeObserver/);
+  assert.match(hook, /MutationObserver/);
+  assert.match(component, /hasVerticalOverflow && !verticalEnd/);
+  assert.match(component, /hasHorizontalOverflow && !horizontalEnd/);
+  assert.match(component, /Scroll to view more/);
+  assert.match(component, /Scroll right to view more/);
+  assert.match(component, /role="region"/);
+  assert.match(component, /tabIndex=\{0\}/);
+  assert.match(globals, /scrollbar-gutter: stable/);
+  assert.match(globals, /scrollbar-color: #64748b #e2e8f0/);
+  assert.match(globals, /overscroll-behavior: auto/);
+  assert.match(globals, /scroll-affordance__fade--bottom/);
+  assert.match(globals, /scroll-affordance__fade--right/);
 });
 
 test('admin header chip uses Supplide branding without changing profile data', () => {

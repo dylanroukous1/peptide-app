@@ -22,6 +22,7 @@ import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { singleRelation } from '@/src/lib/supabase/relations';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
@@ -504,7 +505,12 @@ export default function AdminUsersScreen() {
               </Typography>
             </EmptyWrap>
           ) : (
-            <ListWrap className="record-results">
+            <ScrollableResults
+              containerComponent={ListWrap}
+              count={requests.length}
+              label="Access requests"
+              singularLabel="request"
+            >
               {requests.map((request) => (
                 <UserCard key={request.id}>
                   <Stack
@@ -588,7 +594,7 @@ export default function AdminUsersScreen() {
                   </Stack>
                 </UserCard>
               ))}
-            </ListWrap>
+            </ScrollableResults>
           )}
         </SectionCard>
 
@@ -768,7 +774,7 @@ export default function AdminUsersScreen() {
 
         <SectionCard>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
-            Existing Users · {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'}
+            Existing Users
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Search, review company assignment, and update account status.
@@ -809,7 +815,12 @@ export default function AdminUsersScreen() {
               </Typography>
             </EmptyWrap>
           ) : (
-            <ListWrap className="record-results">
+            <ScrollableResults
+              containerComponent={ListWrap}
+              count={filteredUsers.length}
+              label="User records"
+              singularLabel="user"
+            >
               {filteredUsers.map((user) => {
                 const draft = drafts[user.id];
 
@@ -955,7 +966,7 @@ export default function AdminUsersScreen() {
                   </UserCard>
                 );
               })}
-            </ListWrap>
+            </ScrollableResults>
           )}
         </SectionCard>
       </Stack>

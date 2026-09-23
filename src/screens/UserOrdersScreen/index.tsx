@@ -9,6 +9,7 @@ import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
 import { userNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { singleRelation } from '@/src/lib/supabase/relations';
 import { EmptyWrap, MobileOrderCard, OrderMetaGrid, SectionCard, StatCard, StatsGrid } from './styles';
 
@@ -98,12 +99,17 @@ export default function UserOrdersScreen() {
           ))}
         </StatsGrid>
         <SectionCard>
-          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Order History · {orders.length} {orders.length === 1 ? 'order' : 'orders'}</Typography>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Order History</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Review order totals, product lines, tracking and status.</Typography>
           {orders.length === 0 ? (
             <EmptyWrap><Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>No orders yet</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Submitted orders will appear here.</Typography></EmptyWrap>
           ) : (
-            <Box className="record-results" sx={{ display: 'grid', gap: 2, mt: 2 }}>
+            <ScrollableResults
+              containerClassName="order-history-results"
+              count={orders.length}
+              label="Customer order history"
+              singularLabel="order"
+            >
               {orders.map((order) => {
                 const totalVials = order.items.reduce((sum, item) => sum + Number(item.requested_quantity), 0);
                 return (
@@ -133,7 +139,7 @@ export default function UserOrdersScreen() {
                   </MobileOrderCard>
                 );
               })}
-            </Box>
+            </ScrollableResults>
           )}
         </SectionCard>
       </Stack>

@@ -20,6 +20,7 @@ import { supabase } from '@/src/supabase/client';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { userNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   AddressFormGrid,
@@ -258,13 +259,18 @@ export default function UserDashboardScreen() {
 
         <OrderGrid>
           <SectionCard>
-            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Product catalog · {filteredPeptides.length} products</Typography>
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Product catalog</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Search active products and add each SKU once.</Typography>
             <StyledTextField label="Search products" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} fullWidth sx={{ mt: 2 }} />
             {filteredPeptides.length === 0 ? (
               <EmptyWrap sx={{ mt: 2, p: 3 }}><Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>No matching products</Typography><Typography variant="body2" color="text.secondary">Try a different peptide name.</Typography></EmptyWrap>
             ) : (
-              <ProductList className="record-results">
+              <ScrollableResults
+                containerComponent={ProductList}
+                count={filteredPeptides.length}
+                label="Product catalog results"
+                singularLabel="product"
+              >
                 {filteredPeptides.map((peptide) => {
                   const added = items.some((item) => item.peptideId === peptide.id);
                   return (
@@ -277,7 +283,7 @@ export default function UserDashboardScreen() {
                     </ProductCard>
                   );
                 })}
-              </ProductList>
+              </ScrollableResults>
             )}
           </SectionCard>
 

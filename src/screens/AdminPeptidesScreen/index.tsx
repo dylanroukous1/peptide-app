@@ -16,6 +16,7 @@ import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   ActionsGrid,
@@ -387,7 +388,7 @@ export default function AdminPeptidesScreen() {
 
           <SectionCard>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
-              Existing Peptides · {filteredPeptides.length} {filteredPeptides.length === 1 ? 'product' : 'products'}
+              Existing Peptides
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Update pricing, rename entries, or activate and deactivate peptides.
@@ -413,7 +414,12 @@ export default function AdminPeptidesScreen() {
                 </Typography>
               </EmptyWrap>
             ) : (
-              <ListWrap className="record-results">
+              <ScrollableResults
+                containerComponent={ListWrap}
+                count={filteredPeptides.length}
+                label="Peptide records"
+                singularLabel="product"
+              >
                 {filteredPeptides.map((row) => (
                   <PeptideCard key={row.id}>
                   <Stack
@@ -530,7 +536,7 @@ export default function AdminPeptidesScreen() {
                     </ActionsGrid>
                   </PeptideCard>
                 ))}
-              </ListWrap>
+              </ScrollableResults>
             )}
           </SectionCard>
         </PageGrid>

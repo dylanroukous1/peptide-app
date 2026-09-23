@@ -16,6 +16,7 @@ import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { useUnsavedChanges } from '@/src/hooks/useUnsavedChanges';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
@@ -499,7 +500,7 @@ export default function AdminCompaniesScreen() {
 
           <SectionCard>
             <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
-              Existing Companies · {filteredCompanies.length} {filteredCompanies.length === 1 ? 'company' : 'companies'}
+              Existing Companies
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Update company profile data or activate and deactivate partner records.
@@ -525,7 +526,13 @@ export default function AdminCompaniesScreen() {
                 </Typography>
               </EmptyWrap>
             ) : (
-              <ListWrap className="record-results">
+              <ScrollableResults
+                containerComponent={ListWrap}
+                count={filteredCompanies.length}
+                label="Company records"
+                singularLabel="company"
+                pluralLabel="companies"
+              >
                 {filteredCompanies.map((row) => (
                   <CompanyCard key={row.id}>
                     <Stack
@@ -710,7 +717,7 @@ export default function AdminCompaniesScreen() {
                     </ButtonRow>
                   </CompanyCard>
                 ))}
-              </ListWrap>
+              </ScrollableResults>
             )}
           </SectionCard>
         </PageGrid>

@@ -20,6 +20,7 @@ import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
 import { userNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
+import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   EmptyWrap,
@@ -174,7 +175,7 @@ export default function UserPeptidesScreen() {
 
         <SectionCard>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
-            Available Peptides · {filteredPeptides.length} {filteredPeptides.length === 1 ? 'product' : 'products'}
+            Available Peptides
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Review current active peptides and their default unit pricing.
@@ -200,15 +201,13 @@ export default function UserPeptidesScreen() {
               </Typography>
             </EmptyWrap>
           ) : (
-            <>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: { xs: 'block', md: 'none' }, mt: 2 }}
+              <ScrollableResults
+                containerComponent={TableWrap}
+                count={filteredPeptides.length}
+                direction="both"
+                label="Peptide pricing table"
+                singularLabel="product"
               >
-                Swipe horizontally to review all pricing columns.
-              </Typography>
-              <TableWrap className="record-results" role="region" aria-label="Peptide pricing table" tabIndex={0}>
                 <Table sx={{ minWidth: 700 }}>
                 <TableHead>
                   <TableRow>
@@ -240,8 +239,7 @@ export default function UserPeptidesScreen() {
                   ))}
                 </TableBody>
                 </Table>
-              </TableWrap>
-            </>
+              </ScrollableResults>
           )}
         </SectionCard>
       </Stack>
