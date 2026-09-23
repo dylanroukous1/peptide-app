@@ -1,4 +1,4 @@
-`  -- Orders are placed against the product catalog. A batch remains an optional
+-- Orders are placed against the product catalog. A batch remains an optional
   -- legacy/fulfilment reference so existing batch-linked orders stay intact.
 
   alter table public.orders

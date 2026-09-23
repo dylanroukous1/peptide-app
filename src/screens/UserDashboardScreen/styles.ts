@@ -77,6 +77,25 @@ export const ReviewBox = styled(Box)(({ theme }) => ({
   padding: theme.spacing(2),
 }));
 
+export const OrderItemsList = styled(Box)(({ theme }) => ({
+  display: 'grid',
+  gap: theme.spacing(1.5),
+}));
+
+export const OrderItemCard = styled(Box)(({ theme }) => ({
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) 150px 44px',
+  gap: theme.spacing(1.25),
+  alignItems: 'center',
+  padding: theme.spacing(1.5),
+  border: '1px solid #E2E8F0',
+  borderRadius: 10,
+  [theme.breakpoints.down('sm')]: {
+    gridTemplateColumns: 'minmax(0, 1fr) 44px',
+    '& .order-item-quantity': { gridColumn: '1 / -1', gridRow: 2 },
+  },
+}));
+
 export const StyledTextField = styled(TextField)(() => ({
   '& .MuiOutlinedInput-root': { borderRadius: 10 },
 }));

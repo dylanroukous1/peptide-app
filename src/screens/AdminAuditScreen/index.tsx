@@ -62,9 +62,10 @@ function formatDateTime(value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: 'UTC',
   }).format(date);
 }
 
@@ -132,7 +133,10 @@ export default function AdminAuditScreen() {
           ? supabase.from('profiles').select('id, first_name, last_name, email').in('id', profileIds)
           : Promise.resolve({ data: [], error: null }),
         orderIds.length
-          ? supabase.from('orders').select('id, order_number, peptide:peptides(name)').in('id', orderIds)
+          ? supabase
+              .from('orders')
+              .select('id, order_number, total_price, peptide:peptides(name), items:order_items(requested_quantity, peptide:peptides(name))')
+              .in('id', orderIds)
           : Promise.resolve({ data: [], error: null }),
         peptideIds.length
           ? supabase.from('peptides').select('id, name').in('id', peptideIds)
@@ -157,9 +161,17 @@ export default function AdminAuditScreen() {
         nextReferences.users[user.id] = user.email || label;
       }
       for (const order of orderResult.data || []) {
+        const items = order.items || [];
+        const firstItemProduct = items[0] ? singleRelation(items[0].peptide)?.name : undefined;
         nextReferences.orders[order.id] = {
           orderNumber: order.order_number,
-          productName: singleRelation(order.peptide)?.name,
+          productName: firstItemProduct || singleRelation(order.peptide)?.name,
+          itemCount: items.length || 1,
+          totalQuantity: items.reduce(
+            (sum, item) => sum + Number(item.requested_quantity || 0),
+            0
+          ),
+          totalPrice: Number(order.total_price || 0),
         };
       }
       for (const peptide of peptideResult.data || []) nextReferences.peptides[peptide.id] = peptide.name;

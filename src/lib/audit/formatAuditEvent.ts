@@ -9,7 +9,13 @@ export type AuditEvent = {
 
 export type AuditReferences = {
   actors: Record<string, string>;
-  orders: Record<string, { orderNumber: string; productName?: string }>;
+  orders: Record<string, {
+    orderNumber: string;
+    productName?: string;
+    itemCount?: number;
+    totalQuantity?: number;
+    totalPrice?: number;
+  }>;
   peptides: Record<string, string>;
   companies: Record<string, string>;
   users: Record<string, string>;
@@ -30,6 +36,15 @@ export function auditActorLabel(actorId: string | null, references: AuditReferen
   return references.actors[actorId] || 'Unknown administrator';
 }
 
+function money(value: unknown) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
 export function formatAuditMessage(event: AuditEvent, references: AuditReferences) {
   const actor = auditActorLabel(event.actor_user_id, references);
   const action = event.action.toUpperCase();
@@ -39,13 +54,27 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
     order?.productName ||
     references.peptides[String(event.after_json?.peptide_id || '')] ||
     'the selected product';
+  const itemCount = Number(order?.itemCount ?? event.after_json?.item_count ?? 1);
+  const totalQuantity = Number(
+    order?.totalQuantity ??
+    event.after_json?.total_quantity ??
+    event.after_json?.requested_quantity ??
+    0
+  );
+  const totalPrice = Number(order?.totalPrice ?? event.after_json?.total_price ?? 0);
 
   if (action === 'ORDER_SUBMITTED' || action === 'ORDER_CREATED') {
-    return `${actor} created order ${orderNumber} for ${productName}.`;
+    if (itemCount > 0 && totalQuantity > 0) {
+      return `${actor} submitted order ${orderNumber} containing ${itemCount} ${itemCount === 1 ? 'product' : 'products'} and ${totalQuantity.toLocaleString('en-US')} vials for ${money(totalPrice)}.`;
+    }
+    return `${actor} submitted order ${orderNumber} for ${productName}.`;
   }
   if (action === 'ORDER_STATUS_UPDATED') {
     const before = humanizeAuditValue(event.before_json?.status || 'previous status');
     const after = humanizeAuditValue(event.after_json?.status || 'updated status');
+    if (after === 'Approved' && itemCount > 0) {
+      return `${actor} approved order ${orderNumber} containing ${itemCount} ${itemCount === 1 ? 'product' : 'products'}.`;
+    }
     return `${actor} changed order ${orderNumber} from ${before} to ${after}.`;
   }
 

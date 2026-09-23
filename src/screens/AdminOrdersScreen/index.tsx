@@ -35,13 +35,22 @@ import {
 type OrderRow = {
   id: string;
   order_number: string;
-  requested_quantity: number;
+  requested_quantity: number | null;
   approved_quantity: number | null;
-  unit_price_at_submission: number;
+  unit_price_at_submission: number | null;
   total_price: number;
   status: string;
   user_notes: string | null;
   submitted_at: string;
+  items: Array<{
+    id: string;
+    requested_quantity: number;
+    approved_quantity: number | null;
+    unit_price_at_submission: number;
+    unit_price_final: number | null;
+    line_total: number;
+    peptide?: { name: string } | null;
+  }>;
   peptide?: { name: string } | null;
   company?: { name: string } | null;
   user?: {
@@ -122,6 +131,15 @@ export default function AdminOrdersScreen() {
         status,
         user_notes,
         submitted_at,
+        items:order_items(
+          id,
+          requested_quantity,
+          approved_quantity,
+          unit_price_at_submission,
+          unit_price_final,
+          line_total,
+          peptide:peptides(name)
+        ),
         peptide:peptides(name),
         company:companies(name),
         user:profiles(first_name, last_name, email),
@@ -145,6 +163,10 @@ export default function AdminOrdersScreen() {
       const batch = singleRelation(row.batch);
       return {
         ...row,
+        items: (row.items || []).map((item) => ({
+          ...item,
+          peptide: singleRelation(item.peptide),
+        })),
         peptide: singleRelation(row.peptide),
         company: singleRelation(row.company),
         user: singleRelation(row.user),
@@ -192,6 +214,7 @@ export default function AdminOrdersScreen() {
       const haystack = [
         order.order_number,
         order.company?.name || '',
+        order.items.map((item) => item.peptide?.name || '').join(' '),
         order.peptide?.name || order.batch?.peptide?.name || '',
         order.batch?.batch_code || '',
         order.user?.email || '',
@@ -390,7 +413,7 @@ export default function AdminOrdersScreen() {
                         {order.order_number}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {order.company?.name || 'Company'} · {order.peptide?.name || order.batch?.peptide?.name || 'Peptide'}
+                        {order.company?.name || 'Company'} · {order.items.length} {order.items.length === 1 ? 'product' : 'products'}
                       </Typography>
                     </Box>
 
@@ -419,19 +442,19 @@ export default function AdminOrdersScreen() {
 
                     <Box>
                       <Typography variant="caption" color="text.secondary">
-                        Quantity
+                        Total Vials
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {Number(order.approved_quantity || order.requested_quantity || 0).toLocaleString('en-US')} units
+                        {order.items.reduce((sum, item) => sum + Number(item.requested_quantity), 0).toLocaleString('en-US')} units
                       </Typography>
                     </Box>
 
                     <Box>
                       <Typography variant="caption" color="text.secondary">
-                        Submitted Unit Price
+                        Products
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {money(order.unit_price_at_submission)}
+                        {order.items.length}
                       </Typography>
                     </Box>
 
@@ -493,6 +516,28 @@ export default function AdminOrdersScreen() {
                       </Typography>
                     </Box>
                   </MetaGrid>
+
+                  <Box component="details" sx={{ mt: 2 }}>
+                    <Typography
+                      component="summary"
+                      variant="body2"
+                      sx={{ cursor: 'pointer', fontWeight: 800, width: 'fit-content' }}
+                    >
+                      View product breakdown
+                    </Typography>
+                    <Stack spacing={1} sx={{ mt: 1.5 }}>
+                      {order.items.map((item) => (
+                        <Box key={item.id} sx={{ p: 1.5, border: '1px solid #E2E8F0', borderRadius: 2 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                            {item.peptide?.name || 'Product'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Requested {Number(item.requested_quantity).toLocaleString('en-US')} · Approved {item.approved_quantity == null ? 'Pending' : Number(item.approved_quantity).toLocaleString('en-US')} · Submitted {money(item.unit_price_at_submission)} · Final {item.unit_price_final == null ? 'Pending' : money(item.unit_price_final)} · Line {money(item.line_total)}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Box>
 
                   {order.user_notes ? (
                     <Box sx={{ mt: 1.5 }}>
