@@ -28,7 +28,7 @@ function formatDate(value?: string | null) {
 export default function UserOrdersScreen() {
   const router = useRouter();
   const { profile, loading: sessionLoading } = useSessionUser();
-  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [orders, setOrders] = useState<OrderRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [retryKey, setRetryKey] = useState(0);
@@ -51,6 +51,7 @@ export default function UserOrdersScreen() {
         .eq('user_id', profile.id)
         .order('submitted_at', { ascending: false });
       if (error) {
+        setOrders(null);
         setErrorMessage(error.message);
         setLoading(false);
         return;
@@ -69,7 +70,7 @@ export default function UserOrdersScreen() {
   }, [profile, retryKey, router, sessionLoading]);
 
   useEffect(() => {
-    if (loading || orders.length === 0 || !window.location.hash) return;
+    if (loading || !orders?.length || !window.location.hash) return;
     const frame = window.requestAnimationFrame(() => {
       document.getElementById(window.location.hash.slice(1))?.scrollIntoView({
         behavior: 'smooth',
@@ -79,15 +80,25 @@ export default function UserOrdersScreen() {
     return () => window.cancelAnimationFrame(frame);
   }, [loading, orders]);
 
+  const resolvedOrders = useMemo(() => orders ?? [], [orders]);
   const stats = useMemo(() => ({
-    totalOrders: orders.length,
-    submittedCount: orders.filter((order) => ['SUBMITTED', 'UNDER_REVIEW'].includes(order.status)).length,
-    approvedCount: orders.filter((order) => ['APPROVED', 'IN_PRODUCTION', 'FULFILLED'].includes(order.status)).length,
-    totalSpend: orders.filter((order) => ['APPROVED', 'IN_PRODUCTION', 'FULFILLED'].includes(order.status)).reduce((sum, order) => sum + Number(order.total_price || 0), 0),
-  }), [orders]);
+    totalOrders: resolvedOrders.length,
+    submittedCount: resolvedOrders.filter((order) => ['SUBMITTED', 'UNDER_REVIEW'].includes(order.status)).length,
+    approvedCount: resolvedOrders.filter((order) => ['APPROVED', 'IN_PRODUCTION', 'FULFILLED'].includes(order.status)).length,
+    totalSpend: resolvedOrders.filter((order) => ['APPROVED', 'IN_PRODUCTION', 'FULFILLED'].includes(order.status)).reduce((sum, order) => sum + Number(order.total_price || 0), 0),
+  }), [resolvedOrders]);
 
   if (sessionLoading || loading) return <PageSkeleton label="Loading order history" />;
   if (!profile || profile.role !== 'USER' || profile.account_status !== 'ACTIVE') return null;
+  if (orders === null) {
+    return (
+      <AppShell title="My Orders" subtitle="Track submitted, approved, and fulfilled orders" navItems={userNavigation}>
+        <Alert severity="error" action={<Button color="inherit" onClick={() => setRetryKey((key) => key + 1)}>Retry</Button>}>
+          {errorMessage || 'Unable to load order history.'}
+        </Alert>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title="My Orders" subtitle="Track submitted, approved, and fulfilled orders" navItems={userNavigation}>
@@ -101,16 +112,16 @@ export default function UserOrdersScreen() {
         <SectionCard>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Order History</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Review order totals, product lines, tracking and status.</Typography>
-          {orders.length === 0 ? (
+          {resolvedOrders.length === 0 ? (
             <EmptyWrap><Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>No orders yet</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Submitted orders will appear here.</Typography></EmptyWrap>
           ) : (
             <ScrollableResults
               containerClassName="order-history-results"
-              count={orders.length}
+              count={resolvedOrders.length}
               label="Customer order history"
               singularLabel="order"
             >
-              {orders.map((order) => {
+              {resolvedOrders.map((order) => {
                 const totalVials = order.items.reduce((sum, item) => sum + Number(item.requested_quantity), 0);
                 return (
                   <MobileOrderCard key={order.id} id={`order-${order.id}`} sx={{ scrollMarginTop: 24, '&:target': { outline: '3px solid #38BDF8', outlineOffset: 2 } }}>

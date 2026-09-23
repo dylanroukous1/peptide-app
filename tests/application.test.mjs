@@ -110,6 +110,7 @@ test('dates are deterministic and privileged keys stay server-only', () => {
 test('orders, shipments, audit logs, email events, and RLS remain intact', () => {
   const baseMigration = read('supabase/migrations/20260504_initial_peptide_schema.sql');
   const orderScreen = read('src/screens/AdminOrdersScreen/index.tsx');
+  const workspaceLoader = read('src/lib/workspace/loadWorkspace.ts');
   const auditScreen = read('src/screens/AdminAuditScreen/index.tsx');
 
   for (const table of ['orders', 'batches', 'batch_pricing_tiers', 'wishlist_requests', 'shipments', 'email_events', 'audit_logs']) {
@@ -117,7 +118,7 @@ test('orders, shipments, audit logs, email events, and RLS remain intact', () =>
     assert.match(baseMigration, new RegExp(`alter table public\\.${table} enable row level security`));
   }
 
-  assert.match(orderScreen, /shipment:shipments/);
+  assert.match(workspaceLoader, /shipment:shipments/);
   assert.match(orderScreen, /admin_update_order_status/);
   assert.match(auditScreen, /\.from\('audit_logs'\)/);
   assert.match(auditScreen, /\.from\('email_events'\)/);
@@ -230,17 +231,19 @@ test('legacy ordering RPC cannot bypass multi-product minimums', () => {
 test('customer history and admin review fetch and render nested order items without waterfalls', () => {
   const userHistory = read('src/screens/UserOrdersScreen/index.tsx');
   const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const workspaceLoader = read('src/lib/workspace/loadWorkspace.ts');
 
   for (const screen of [userHistory, adminOrders]) {
-    assert.match(screen, /items:order_items\(/);
     assert.match(screen, /item\.peptide\?\.name/);
     assert.match(screen, /approved_quantity/);
     assert.match(screen, /unit_price_final/);
     assert.match(screen, /line_total/);
   }
+  assert.match(userHistory, /items:order_items\(/);
+  assert.match(workspaceLoader, /items:order_items\(/);
   assert.match(userHistory, /company:companies\(name\)/);
   assert.match(userHistory, /Company \/ Customer/);
-  assert.match(adminOrders, /batch:batches/);
+  assert.match(workspaceLoader, /batch:batches/);
   assert.match(adminOrders, /admin_update_order_status/);
   assert.match(adminOrders, /Direct catalog order/);
 });
@@ -349,7 +352,7 @@ test('login uses deterministic fallback markup to prevent auth hydration mismatc
 
   assert.match(login, /useSyncExternalStore\(subscribeToClient, \(\) => true, \(\) => false\)/);
   assert.match(login, /if \(!mounted\)[\s\S]*login-route-loading/);
-  assert.match(login, /Loading Supplide/);
+  assert.match(login, /Preparing your workspace…/);
   assert.match(loginPage, /<LoginScreen \/>/);
   assert.doesNotMatch(loginPage, /LoginClient/);
 });
@@ -397,19 +400,73 @@ test('admin header chip uses Supplide branding without changing profile data', (
   assert.match(topbar, /\{displayName\}/);
 });
 
-test('login synchronizes the shared profile before first navigation and announces progress', () => {
+test('login synchronizes the shared profile and prepared workspace before one navigation', () => {
   const sessionProvider = read('src/hooks/useSessionUser.tsx');
   const login = read('src/screens/LoginScreen/index.tsx');
 
   assert.match(sessionProvider, /syncSession: \(\) => Promise<SessionProfile \| null>/);
-  assert.match(sessionProvider, /setLoading\(true\)[\s\S]*loadingUserIdRef\.current = user\.id/);
-  assert.match(login, /const dbProfile = await syncSession\(\)/);
+  assert.match(sessionProvider, /profileRequestRef\.current\?\.userId === user\.id/);
+  assert.match(sessionProvider, /workspaceRequestRef\.current\?\.userId === user\.id/);
+  assert.match(login, /const dbProfile = await resolveUser\(data\.user\)/);
+  assert.match(login, /Promise\.all\([\s\S]*prepareWorkspace\(nextProfile\)/);
+  assert.match(login, /import\('@\/src\/screens\/AdminOrdersScreen'\)/);
   assert.doesNotMatch(login, /supabase\.auth\.getUser/);
-  assert.match(login, /open=\{submitting\}/);
-  assert.match(login, /Signing you in…/);
+  assert.doesNotMatch(login, /Snackbar|Signing you in|success/i);
+  assert.match(login, /Preparing your workspace…/);
   assert.match(login, /role="status"/);
-  assert.match(login, /dbProfile\.role === 'ADMIN' \? '\/admin\/orders' : '\/dashboard'/);
+  assert.match(login, /nextProfile\.role === 'ADMIN' \? '\/admin\/orders' : '\/dashboard'/);
+  assert.equal((login.match(/router\.replace\(/g) || []).length, 1);
   assert.doesNotMatch(login, /router\.refresh\(\)/);
+});
+
+test('authentication bootstrap covers errors, inactive accounts, existing sessions, and account switching', () => {
+  const login = read('src/screens/LoginScreen/index.tsx');
+  const provider = read('src/hooks/useSessionUser.tsx');
+  const topbar = read('src/components/layout/Topbar/index.tsx');
+
+  for (const state of ['idle', 'authenticating', 'loading-account', 'preparing-workspace', 'ready', 'error']) {
+    assert.match(login, new RegExp(`'${state}'`));
+  }
+  assert.match(login, /if \(submittingRef\.current\) return/);
+  assert.match(login, /setPassword\(''\)/);
+  assert.match(login, /account_status !== 'ACTIVE'/);
+  assert.match(login, /await supabase\.auth\.signOut\(\)/);
+  assert.match(login, /if \(!profile \|\| automaticBootstrapRef\.current === profile\.id\) return/);
+  assert.match(login, /WorkspaceLoadingSurface[\s\S]*onRetry/);
+  assert.match(provider, /previousUserId && previousUserId !== user\.id[\s\S]*clearPreparedWorkspace\(\)/);
+  assert.match(provider, /preparedWorkspaceRef\.current\?\.userId/);
+  assert.match(topbar, /resetSession\(\)[\s\S]*router\.replace\('\/login'\)/);
+});
+
+test('orders distinguish unresolved data from a successful empty response and reuse bootstrap data', () => {
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const userOrders = read('src/screens/UserOrdersScreen/index.tsx');
+  const customerWorkspace = read('src/screens/UserDashboardScreen/index.tsx');
+  const loader = read('src/lib/workspace/loadWorkspace.ts');
+
+  assert.match(adminOrders, /useState<OrderRow\[\] \| null>/);
+  assert.match(adminOrders, /initialOrders === null/);
+  assert.match(adminOrders, /preparedWorkspace\?\.role === 'ADMIN'/);
+  assert.match(userOrders, /useState<OrderRow\[\] \| null>\(null\)/);
+  assert.match(userOrders, /sessionLoading \|\| loading/);
+  assert.match(userOrders, /if \(orders === null\)/);
+  assert.match(customerWorkspace, /initialWorkspace\?\.peptides/);
+  assert.match(customerWorkspace, /workspaceLoadedRef = useRef\(initialWorkspace !== null\)/);
+  assert.match(loader, /Promise\.all\(\[peptideRequest, addressRequest\]\)/);
+});
+
+test('session provider owns the only auth listener and clears user-scoped bootstrap data', () => {
+  const provider = read('src/hooks/useSessionUser.tsx');
+  const allSource = [
+    provider,
+    read('src/screens/LoginScreen/index.tsx'),
+    read('src/components/layout/ProtectedAppLayout/index.tsx'),
+  ].join('\n');
+
+  assert.equal((allSource.match(/onAuthStateChange/g) || []).length, 1);
+  assert.match(provider, /preparedWorkspaceRef\.current = null/);
+  assert.match(provider, /currentUserRef\.current\?\.id !== user\.id/);
+  assert.match(provider, /resetSession/);
 });
 
 test('customer order catalog supports persisted case-insensitive product search', () => {

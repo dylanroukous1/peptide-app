@@ -6,6 +6,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { Box, Button, CircularProgress, Typography } from '@mui/material';
 import { supabase } from '@/src/supabase/client';
+import { useSessionUser } from '@/src/hooks/useSessionUser';
 import {
   ActionsWrap,
   MobileMenuButton,
@@ -35,6 +36,7 @@ export default function Topbar({
   mobileNavOpen = false,
 }: TopbarProps) {
   const router = useRouter();
+  const { clearPreparedWorkspace, resetSession } = useSessionUser();
   const [loggingOut, setLoggingOut] = useState(false);
   const displayName = userRole === 'ADMIN' ? 'Supplide' : userName;
   const seed = (displayName || userRole || 'user').replace(/\s+/g, ' ').trim();
@@ -54,9 +56,10 @@ export default function Topbar({
 
   const handleLogout = async () => {
     setLoggingOut(true);
+    clearPreparedWorkspace();
     await supabase.auth.signOut();
+    resetSession();
     router.replace('/login');
-    router.refresh();
     setLoggingOut(false);
   };
 

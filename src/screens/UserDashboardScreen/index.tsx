@@ -23,6 +23,11 @@ import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
+  loadCustomerOrderingData,
+  type CustomerAddress as AddressRow,
+  type CustomerPeptide as PeptideRow,
+} from '@/src/lib/workspace/loadWorkspace';
+import {
   AddressFormGrid,
   EmptyWrap,
   FormGrid,
@@ -38,19 +43,6 @@ import {
   StyledTextField,
 } from './styles';
 
-type PeptideRow = { id: string; name: string; default_unit_price: number };
-type AddressRow = {
-  id: string;
-  label: string | null;
-  recipient_name: string | null;
-  line1: string;
-  line2: string | null;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-  is_default: boolean;
-};
 type DraftItem = { peptideId: string; quantity: string };
 type OrderReceipt = {
   order_id: string;
@@ -76,15 +68,30 @@ function money(value: number | string | null | undefined) {
 
 export default function UserDashboardScreen() {
   const router = useRouter();
-  const { profile, loading: sessionLoading } = useSessionUser();
-  const [peptides, setPeptides] = useState<PeptideRow[]>([]);
-  const [addresses, setAddresses] = useState<AddressRow[]>([]);
+  const {
+    profile,
+    loading: sessionLoading,
+    preparedWorkspace,
+    clearPreparedWorkspace,
+  } = useSessionUser();
+  const initialWorkspace =
+    preparedWorkspace?.role === 'USER' && preparedWorkspace.userId === profile?.id
+      ? preparedWorkspace
+      : null;
+  const [peptides, setPeptides] = useState<PeptideRow[]>(() => initialWorkspace?.peptides ?? []);
+  const [addresses, setAddresses] = useState<AddressRow[]>(() => initialWorkspace?.addresses ?? []);
   const [items, setItems] = useState<DraftItem[]>([]);
-  const [addressId, setAddressId] = useState('');
+  const [addressId, setAddressId] = useState(
+    () =>
+      initialWorkspace?.addresses.find((address) => address.is_default)?.id ||
+      initialWorkspace?.addresses[0]?.id ||
+      ''
+  );
   const [notes, setNotes] = useState('');
   const [addressDraft, setAddressDraft] = useState(emptyAddress);
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialWorkspace === null);
+  const [workspaceLoaded, setWorkspaceLoaded] = useState(initialWorkspace !== null);
   const [submitting, setSubmitting] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -92,33 +99,25 @@ export default function UserDashboardScreen() {
   const [success, setSuccess] = useState<OrderReceipt | null>(null);
   const [productSearch, setProductSearch] = useSessionStorageState('customer-order-product-search', '');
   const submittingRef = useRef(false);
+  const workspaceLoadedRef = useRef(initialWorkspace !== null);
 
   const loadOrderingData = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
     setErrorMessage('');
-    const peptideRequest = supabase
-      .from('peptides')
-      .select('id, name, default_unit_price')
-      .eq('is_active', true)
-      .order('name');
-    const addressRequest = profile.company_id
-      ? supabase
-          .from('company_addresses')
-          .select('id, label, recipient_name, line1, line2, city, state, postal_code, country, is_default')
-          .eq('company_id', profile.company_id)
-          .order('is_default', { ascending: false })
-      : Promise.resolve({ data: [] as AddressRow[], error: null });
-    const [peptideResult, addressResult] = await Promise.all([peptideRequest, addressRequest]);
-    if (peptideResult.error || addressResult.error) {
-      setErrorMessage(peptideResult.error?.message || addressResult.error?.message || 'Unable to load ordering data.');
+    try {
+      const data = await loadCustomerOrderingData(profile.company_id);
+      const nextAddresses = data.addresses;
+      setPeptides(data.peptides);
+      setAddresses(nextAddresses);
+      setAddressId((current) => current || nextAddresses.find((address) => address.is_default)?.id || nextAddresses[0]?.id || '');
+      workspaceLoadedRef.current = true;
+      setWorkspaceLoaded(true);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to load ordering data.');
       setLoading(false);
       return;
     }
-    const nextAddresses = addressResult.data || [];
-    setPeptides(peptideResult.data || []);
-    setAddresses(nextAddresses);
-    setAddressId((current) => current || nextAddresses.find((address) => address.is_default)?.id || nextAddresses[0]?.id || '');
     setLoading(false);
   }, [profile]);
 
@@ -128,9 +127,15 @@ export default function UserDashboardScreen() {
       router.replace('/login');
       return;
     }
+    if (workspaceLoadedRef.current) {
+      setAddressId((current) => current || addresses.find((address) => address.is_default)?.id || addresses[0]?.id || '');
+      setLoading(false);
+      if (preparedWorkspace?.role === 'USER') clearPreparedWorkspace();
+      return;
+    }
     const timer = window.setTimeout(() => void loadOrderingData(), 0);
     return () => window.clearTimeout(timer);
-  }, [loadOrderingData, profile, router, sessionLoading]);
+  }, [addresses, clearPreparedWorkspace, loadOrderingData, preparedWorkspace, profile, router, sessionLoading]);
 
   const filteredPeptides = useMemo(() => {
     const query = productSearch.trim().toLowerCase();
@@ -241,6 +246,15 @@ export default function UserDashboardScreen() {
 
   if (sessionLoading || loading) return <PageSkeleton cards={3} label="Loading order builder" />;
   if (!profile || profile.role !== 'USER' || profile.account_status !== 'ACTIVE') return null;
+  if (errorMessage && !workspaceLoaded) {
+    return (
+      <AppShell title="Build an Order" subtitle="Submit multiple active products in one order request" navItems={userNavigation}>
+        <Alert severity="error" action={<Button color="inherit" onClick={() => void loadOrderingData()}>Retry</Button>}>
+          {errorMessage}
+        </Alert>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title="Build an Order" subtitle="Submit multiple active products in one order request" navItems={userNavigation}>

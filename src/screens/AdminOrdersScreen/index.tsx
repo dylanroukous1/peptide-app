@@ -18,7 +18,10 @@ import { supabase } from '@/src/supabase/client';
 import { adminNavigation } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
-import { singleRelation } from '@/src/lib/supabase/relations';
+import {
+  loadAdminOrders,
+  type AdminOrder as OrderRow,
+} from '@/src/lib/workspace/loadWorkspace';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   ActionsGrid,
@@ -32,49 +35,6 @@ import {
   StatsGrid,
   StyledTextField,
 } from './styles';
-
-type OrderRow = {
-  id: string;
-  order_number: string;
-  requested_quantity: number | null;
-  approved_quantity: number | null;
-  unit_price_at_submission: number | null;
-  total_price: number;
-  status: string;
-  user_notes: string | null;
-  submitted_at: string;
-  items: Array<{
-    id: string;
-    requested_quantity: number;
-    approved_quantity: number | null;
-    unit_price_at_submission: number;
-    unit_price_final: number | null;
-    line_total: number;
-    peptide?: { name: string } | null;
-  }>;
-  peptide?: { name: string } | null;
-  company?: { name: string } | null;
-  user?: {
-    first_name: string;
-    last_name: string;
-    email: string | null;
-  } | null;
-  batch?: {
-    batch_code: string;
-    eta_date: string | null;
-    peptide?: { name: string } | null;
-  } | null;
-  address?: {
-    label: string | null;
-    line1: string;
-    city: string;
-  } | null;
-  shipment?: {
-    tracking_number: string | null;
-    estimated_delivery_date: string | null;
-    carrier_name: string | null;
-  } | null;
-};
 
 const statusOptions = [
   'SUBMITTED',
@@ -103,90 +63,47 @@ function formatDate(value?: string | null) {
 
 export default function AdminOrdersScreen() {
   const router = useRouter();
-  const { profile, loading: sessionLoading } = useSessionUser();
-
-  const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    profile,
+    loading: sessionLoading,
+    preparedWorkspace,
+    clearPreparedWorkspace,
+  } = useSessionUser();
+  const initialOrders =
+    preparedWorkspace?.role === 'ADMIN' && preparedWorkspace.userId === profile?.id
+      ? preparedWorkspace.orders
+      : null;
+  const [orders, setOrders] = useState<OrderRow[] | null>(() => initialOrders);
+  const [loading, setLoading] = useState(initialOrders === null);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [filters, setFilters] = useSessionStorageState('admin-order-filters', {
     search: '',
     status: 'ALL',
   });
-  const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
+  const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries((initialOrders || []).map((order) => [order.id, order.status]))
+  );
   const [submittingOrderId, setSubmittingOrderId] = useState<string | null>(null);
 
   const loadOrders = async () => {
     setLoading(true);
     setErrorMessage('');
 
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        id,
-        order_number,
-        requested_quantity,
-        approved_quantity,
-        unit_price_at_submission,
-        total_price,
-        status,
-        user_notes,
-        submitted_at,
-        items:order_items(
-          id,
-          requested_quantity,
-          approved_quantity,
-          unit_price_at_submission,
-          unit_price_final,
-          line_total,
-          peptide:peptides(name)
-        ),
-        peptide:peptides(name),
-        company:companies(name),
-        user:profiles(first_name, last_name, email),
-        batch:batches(
-          batch_code,
-          eta_date,
-          peptide:peptides(name)
-        ),
-        address:company_addresses(label, line1, city),
-        shipment:shipments(tracking_number, estimated_delivery_date, carrier_name)
-      `)
-      .order('submitted_at', { ascending: false });
-
-    if (error) {
-      setErrorMessage(error.message);
+    try {
+      const normalized = await loadAdminOrders();
+      setOrders(normalized);
+      const drafts: Record<string, string> = {};
+      normalized.forEach((order) => {
+        drafts[order.id] = order.status;
+      });
+      setStatusDrafts(drafts);
+    } catch (error) {
+      setOrders(null);
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to load orders.');
       setLoading(false);
       return;
     }
-
-    const normalized: OrderRow[] = (data || []).map((row) => {
-      const batch = singleRelation(row.batch);
-      return {
-        ...row,
-        items: (row.items || []).map((item) => ({
-          ...item,
-          peptide: singleRelation(item.peptide),
-        })),
-        peptide: singleRelation(row.peptide),
-        company: singleRelation(row.company),
-        user: singleRelation(row.user),
-        batch: batch
-          ? { ...batch, peptide: singleRelation(batch.peptide) }
-          : null,
-        address: singleRelation(row.address),
-        shipment: singleRelation(row.shipment),
-      };
-    });
-
-    setOrders(normalized);
-
-    const drafts: Record<string, string> = {};
-    normalized.forEach((order) => {
-      drafts[order.id] = order.status;
-    });
-    setStatusDrafts(drafts);
-
     setLoading(false);
   };
 
@@ -203,12 +120,19 @@ export default function AdminOrdersScreen() {
       return;
     }
 
+    if (orders !== null) {
+      if (preparedWorkspace?.role === 'ADMIN') clearPreparedWorkspace();
+      return;
+    }
+
     const timer = window.setTimeout(() => void loadOrders(), 0);
     return () => window.clearTimeout(timer);
-  }, [profile, router, sessionLoading]);
+  }, [clearPreparedWorkspace, orders, preparedWorkspace, profile, router, sessionLoading]);
+
+  const resolvedOrders = useMemo(() => orders ?? [], [orders]);
 
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
+    return resolvedOrders.filter((order) => {
       const matchesStatus =
         filters.status === 'ALL' || order.status === filters.status;
 
@@ -227,31 +151,31 @@ export default function AdminOrdersScreen() {
 
       return matchesStatus && matchesSearch;
     });
-  }, [filters.search, filters.status, orders]);
+  }, [filters.search, filters.status, resolvedOrders]);
 
   const stats = useMemo(() => {
-    const pendingReview = orders.filter((order) =>
+    const pendingReview = resolvedOrders.filter((order) =>
       ['SUBMITTED', 'UNDER_REVIEW'].includes(order.status)
     ).length;
 
-    const approvedFlow = orders.filter((order) =>
+    const approvedFlow = resolvedOrders.filter((order) =>
       ['APPROVED', 'IN_PRODUCTION'].includes(order.status)
     ).length;
 
-    const fulfilled = orders.filter((order) => order.status === 'FULFILLED').length;
+    const fulfilled = resolvedOrders.filter((order) => order.status === 'FULFILLED').length;
 
-    const totalRevenue = orders
+    const totalRevenue = resolvedOrders
       .filter((order) => ['APPROVED', 'IN_PRODUCTION', 'FULFILLED'].includes(order.status))
       .reduce((sum, order) => sum + Number(order.total_price || 0), 0);
 
     return {
-      totalOrders: orders.length,
+      totalOrders: resolvedOrders.length,
       pendingReview,
       approvedFlow,
       fulfilled,
       totalRevenue,
     };
-  }, [orders]);
+  }, [resolvedOrders]);
 
   const handleUpdateStatus = async (order: OrderRow) => {
     const nextStatus = statusDrafts[order.id] as
@@ -285,9 +209,11 @@ export default function AdminOrdersScreen() {
 
     setMessage(`Order ${order.order_number} updated to ${nextStatus}.`);
     setOrders((current) =>
-      current.map((item) =>
-        item.id === order.id ? { ...item, status: nextStatus } : item
-      )
+      current
+        ? current.map((item) =>
+            item.id === order.id ? { ...item, status: nextStatus } : item
+          )
+        : current
     );
     setSubmittingOrderId(null);
   };
@@ -298,6 +224,16 @@ export default function AdminOrdersScreen() {
 
   if (!profile || profile.role !== 'ADMIN' || profile.account_status !== 'ACTIVE') {
     return null;
+  }
+
+  if (orders === null) {
+    return (
+      <AppShell title="Order Management" subtitle="Review and update order status across all companies" navItems={adminNavigation}>
+        <Alert severity="error" action={<Button color="inherit" onClick={() => void loadOrders()}>Retry</Button>}>
+          {errorMessage || 'Unable to load orders.'}
+        </Alert>
+      </AppShell>
+    );
   }
 
   return (
