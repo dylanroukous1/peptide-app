@@ -61,6 +61,17 @@ export const MobileOrderCard = styled(Box)(({ theme }) => ({
   borderRadius: 12,
   backgroundColor: '#FFFFFF',
   padding: theme.spacing(2),
+  minWidth: 0,
+  [theme.breakpoints.down('sm')]: {
+    width: '100%',
+    maxWidth: '100%',
+    overflow: 'hidden',
+    '& h3, & p, & summary': {
+      minWidth: 0,
+      overflowWrap: 'anywhere',
+      wordBreak: 'break-word',
+    },
+  },
 }));
 
 export const OrderMetaGrid = styled(Box)(({ theme }) => ({
@@ -70,6 +81,8 @@ export const OrderMetaGrid = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(1.5),
   [theme.breakpoints.down('sm')]: {
     gridTemplateColumns: '1fr',
+    minWidth: 0,
+    '& > *': { minWidth: 0 },
   },
 }));
 

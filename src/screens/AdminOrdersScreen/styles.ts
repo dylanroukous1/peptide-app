@@ -56,6 +56,17 @@ export const OrderCard = styled(Box)(({ theme }) => ({
   backgroundColor: '#FFFFFF',
   borderRadius: 12,
   padding: theme.spacing(2),
+  minWidth: 0,
+  [theme.breakpoints.down('sm')]: {
+    width: '100%',
+    maxWidth: '100%',
+    overflow: 'hidden',
+    '& h3, & p, & summary': {
+      minWidth: 0,
+      overflowWrap: 'anywhere',
+      wordBreak: 'break-word',
+    },
+  },
 }));
 
 export const MetaGrid = styled(Box)(({ theme }) => ({
@@ -68,6 +79,8 @@ export const MetaGrid = styled(Box)(({ theme }) => ({
   },
   [theme.breakpoints.down('sm')]: {
     gridTemplateColumns: '1fr',
+    minWidth: 0,
+    '& > *': { minWidth: 0 },
   },
 }));
 
@@ -79,6 +92,10 @@ export const ActionsGrid = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(2),
   [theme.breakpoints.down('md')]: {
     gridTemplateColumns: '1fr',
+  },
+  [theme.breakpoints.down('sm')]: {
+    minWidth: 0,
+    '& > *': { minWidth: 0, width: '100%' },
   },
 }));
 

@@ -112,3 +112,56 @@ export const EmptyWrap = styled(Box)(({ theme }) => ({
   textAlign: 'center',
   backgroundColor: '#FFFFFF',
 }));
+
+export const DesktopOrderForm = styled(Box)(({ theme }) => ({
+  minWidth: 0,
+  '& .mobile-order-review-header': {
+    display: 'none',
+  },
+  [theme.breakpoints.down('sm')]: {
+    display: 'none',
+    '&[data-mobile-open="true"]': {
+      display: 'block',
+      position: 'fixed',
+      zIndex: theme.zIndex.modal,
+      inset: 0,
+      overflowY: 'auto',
+      overscrollBehavior: 'contain',
+      padding: `max(${theme.spacing(2)}, env(safe-area-inset-top)) ${theme.spacing(1.5)} max(${theme.spacing(2)}, env(safe-area-inset-bottom))`,
+      backgroundColor: '#F6F8FA',
+    },
+    '& .mobile-order-review-header': {
+      display: 'flex',
+      position: 'sticky',
+      top: 0,
+      zIndex: 2,
+      padding: theme.spacing(0.5, 0),
+      backgroundColor: '#FFFFFF',
+    },
+    '& .desktop-order-request-title': {
+      display: 'none',
+    },
+    '& > form, & > form > *': {
+      width: '100%',
+      minWidth: 0,
+    },
+  },
+}));
+
+export const MobileReviewBar = styled(Box)(({ theme }) => ({
+  display: 'none',
+  [theme.breakpoints.down('sm')]: {
+    display: 'block',
+    position: 'fixed',
+    zIndex: theme.zIndex.appBar + 1,
+    right: theme.spacing(1.5),
+    bottom: `max(${theme.spacing(1.5)}, env(safe-area-inset-bottom))`,
+    left: theme.spacing(1.5),
+    padding: theme.spacing(1),
+    border: '1px solid #CBD5E1',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.2)',
+    backdropFilter: 'blur(10px)',
+  },
+}));

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import {
   Alert,
   Box,
@@ -29,11 +30,13 @@ import {
 } from '@/src/lib/workspace/loadWorkspace';
 import {
   AddressFormGrid,
+  DesktopOrderForm,
   EmptyWrap,
   FormGrid,
   OrderGrid,
   OrderItemCard,
   OrderItemsList,
+  MobileReviewBar,
   ProductCard,
   ProductList,
   ReviewBox,
@@ -97,9 +100,24 @@ export default function UserDashboardScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState<OrderReceipt | null>(null);
+  const [mobileReviewOpen, setMobileReviewOpen] = useState(false);
   const [productSearch, setProductSearch] = useSessionStorageState('customer-order-product-search', '');
   const submittingRef = useRef(false);
   const workspaceLoadedRef = useRef(initialWorkspace !== null);
+
+  useEffect(() => {
+    if (!mobileReviewOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !submitting) setMobileReviewOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileReviewOpen, submitting]);
 
   const loadOrderingData = useCallback(async () => {
     if (!profile) return;
@@ -258,7 +276,7 @@ export default function UserDashboardScreen() {
 
   return (
     <AppShell title="Build an Order" subtitle="Submit multiple active products in one order request" navItems={userNavigation}>
-      <Stack spacing={3}>
+      <Stack spacing={3} sx={{ pb: items.length > 0 ? { xs: 11, sm: 0 } : 0 }}>
         {errorMessage ? <Alert severity="error" action={<Button color="inherit" onClick={() => void loadOrderingData()}>Retry</Button>}>{errorMessage}</Alert> : null}
         {!profile.company_id ? <Alert severity="warning">An administrator must assign your account to a company before you can order.</Alert> : null}
         <Alert severity="info">
@@ -301,9 +319,21 @@ export default function UserDashboardScreen() {
             )}
           </SectionCard>
 
+          <DesktopOrderForm
+            data-mobile-open={mobileReviewOpen ? 'true' : 'false'}
+            role={mobileReviewOpen ? 'dialog' : undefined}
+            aria-modal={mobileReviewOpen ? 'true' : undefined}
+            aria-labelledby={mobileReviewOpen ? 'mobile-order-review-title' : undefined}
+          >
           <form onSubmit={submitOrder} noValidate style={{ minWidth: 0 }}>
             <SectionCard>
-              <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Order request</Typography>
+              <Stack className="mobile-order-review-header" direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography id="mobile-order-review-title" component="h2" variant="h5" sx={{ fontWeight: 800 }}>Review order</Typography>
+                <IconButton type="button" aria-label="Close order review" disabled={submitting} onClick={() => setMobileReviewOpen(false)}>
+                  <CloseIcon />
+                </IconButton>
+              </Stack>
+              <Typography className="desktop-order-request-title" component="h2" variant="h5" sx={{ fontWeight: 800 }}>Order request</Typography>
               <FormGrid>
                 {orderItems.length === 0 ? (
                   <EmptyWrap sx={{ p: 3 }}><Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>No products added</Typography><Typography variant="body2" color="text.secondary">Add products from the catalog to begin.</Typography></EmptyWrap>
@@ -367,7 +397,23 @@ export default function UserDashboardScreen() {
               </FormGrid>
             </SectionCard>
           </form>
+          </DesktopOrderForm>
         </OrderGrid>
+
+        {items.length > 0 && !mobileReviewOpen ? (
+          <MobileReviewBar>
+            <Button
+              type="button"
+              variant="contained"
+              fullWidth
+              onClick={() => setMobileReviewOpen(true)}
+              aria-label={`Review order with ${items.length} ${items.length === 1 ? 'product' : 'products'}`}
+              sx={{ minHeight: 48 }}
+            >
+              Review order · {items.length} {items.length === 1 ? 'product' : 'products'} · {money(totalPrice)}
+            </Button>
+          </MobileReviewBar>
+        ) : null}
       </Stack>
     </AppShell>
   );

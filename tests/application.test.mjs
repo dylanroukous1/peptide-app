@@ -271,6 +271,23 @@ test('responsive order builder supports search, addresses, review, progress, and
   assert.match(orderForm, /role="status"/);
   assert.match(styles, /breakpoints\.down\('lg'\)[\s\S]*gridTemplateColumns: '1fr'/);
   assert.match(styles, /breakpoints\.down\('sm'\)/);
+  assert.match(orderForm, /data-mobile-open=\{mobileReviewOpen \? 'true' : 'false'\}/);
+  assert.match(orderForm, /Close order review/);
+  assert.match(orderForm, /Review order · \{items\.length\}/);
+  assert.match(styles, /position: 'fixed'[\s\S]*zIndex: theme\.zIndex\.modal[\s\S]*overflowY: 'auto'/);
+  assert.match(styles, /env\(safe-area-inset-bottom\)/);
+});
+
+test('mobile order cards constrain and wrap long identifiers without changing desktop layout', () => {
+  const adminStyles = read('src/screens/AdminOrdersScreen/styles.ts');
+  const userStyles = read('src/screens/UserOrdersScreen/styles.ts');
+
+  for (const styles of [adminStyles, userStyles]) {
+    assert.match(styles, /breakpoints\.down\('sm'\)[\s\S]*maxWidth: '100%'/);
+    assert.match(styles, /overflowWrap: 'anywhere'/);
+    assert.match(styles, /wordBreak: 'break-word'/);
+    assert.match(styles, /minWidth: 0/);
+  }
 });
 
 test('create user fields have unambiguous mapping and browser autocomplete purposes', () => {
