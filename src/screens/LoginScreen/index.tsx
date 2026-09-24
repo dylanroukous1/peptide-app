@@ -233,14 +233,15 @@ export default function LoginScreen() {
         <WelcomePanel>
           <Stack spacing={3}>
             <Box>
+              <img src="/icon.png" alt="Supplide logo" width={48} height={48} />
               <Typography variant="overline" sx={{ letterSpacing: 2, color: 'text.secondary', fontWeight: 700 }}>Supplide</Typography>
               <Typography component="h1" variant="h3" sx={{ fontWeight: 800, mt: 1.5, lineHeight: 1.1, fontSize: { xs: '2rem', md: '3rem' } }}>Secure partner and admin access</Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mt: 2, maxWidth: 560 }}>Sign in to Supplide to access product pricing, orders, shipping addresses, and administration tools.</Typography>
             </Box>
-            <Stack spacing={2}>
+            {/* <Stack spacing={2}>
               <InfoTile><Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>What this app supports</Typography><Typography variant="body2" color="text.secondary">Role-based access for administrators and partners, protected company ordering flows, order tracking, and catalog management.</Typography></InfoTile>
               <InfoTile><Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>Account status rules</Typography><Typography variant="body2" color="text.secondary">Only profiles marked as <strong>ACTIVE</strong> can enter the app. Newly created accounts may remain <strong>PENDING</strong> until approved.</Typography></InfoTile>
-            </Stack>
+            </Stack> */}
           </Stack>
         </WelcomePanel>
         <LoginCard>
