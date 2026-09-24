@@ -398,9 +398,11 @@ test('customer-facing and shared shell copy uses Supplide branding', () => {
 test('login uses deterministic fallback markup to prevent auth hydration mismatch', () => {
   const login = read('src/screens/LoginScreen/index.tsx');
   const loginPage = read('app/login/page.tsx');
+  const sessionProvider = read('src/hooks/useSessionUser.tsx');
 
-  assert.match(login, /useSyncExternalStore\(subscribeToClient, \(\) => true, \(\) => false\)/);
-  assert.match(login, /if \(!mounted\)[\s\S]*login-route-loading/);
+  assert.doesNotMatch(login, /useSyncExternalStore|subscribeToClient|if \(!mounted\)/);
+  assert.match(login, /if \(sessionLoading\)[\s\S]*login-route-loading/);
+  assert.match(sessionProvider, /const \[loading, setLoading\] = useState\(true\)/);
   assert.match(login, /Preparing your workspace…/);
   assert.match(loginPage, /<LoginScreen \/>/);
   assert.doesNotMatch(loginPage, /LoginClient/);

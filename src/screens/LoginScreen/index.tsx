@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
@@ -24,8 +24,6 @@ type BootstrapState =
   | 'ready'
   | 'error';
 type ErrorStage = 'credentials' | 'account' | 'workspace' | null;
-
-const subscribeToClient = () => () => {};
 
 function WorkspaceLoadingSurface({ error, onRetry, onReturnToLogin }: {
   error?: string;
@@ -75,7 +73,6 @@ export default function LoginScreen() {
   const [message, setMessage] = useState('');
   const [flowState, setFlowState] = useState<BootstrapState>('idle');
   const [errorStage, setErrorStage] = useState<ErrorStage>(null);
-  const mounted = useSyncExternalStore(subscribeToClient, () => true, () => false);
   const submittingRef = useRef(false);
   const automaticBootstrapRef = useRef<string | null>(null);
 
@@ -214,7 +211,9 @@ export default function LoginScreen() {
     setFlowState('idle');
   };
 
-  if (!mounted) {
+  // SessionProvider starts in this state on both the server and the client's
+  // first render, so the hydration snapshot remains identical.
+  if (sessionLoading) {
     return <main className="login-route-loading" role="status" aria-live="polite"><span className="login-route-spinner" aria-hidden="true" /><span>Preparing your workspace…</span></main>;
   }
 
@@ -222,7 +221,7 @@ export default function LoginScreen() {
   const workspaceError = (flowState === 'error' && errorStage === 'workspace') || missingProfile;
   const workspaceErrorMessage = message || 'We could not load your account profile. Try again or return to sign in.';
   const restoringExistingSession = Boolean(profile) && flowState === 'idle';
-  const showBootstrap = sessionLoading || workspaceError || restoringExistingSession || ['authenticating', 'loading-account', 'preparing-workspace', 'ready'].includes(flowState);
+  const showBootstrap = workspaceError || restoringExistingSession || ['authenticating', 'loading-account', 'preparing-workspace', 'ready'].includes(flowState);
   if (showBootstrap) {
     return <WorkspaceLoadingSurface error={workspaceError ? workspaceErrorMessage : undefined} onRetry={() => void retryWorkspace()} onReturnToLogin={() => void returnToLogin()} />;
   }
