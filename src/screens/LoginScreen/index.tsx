@@ -8,7 +8,7 @@ import { supabase } from '@/src/supabase/client';
 import { type SessionProfile, useSessionUser } from '@/src/hooks/useSessionUser';
 import {
   ContentWrap,
-  InfoTile,
+  LoginBrandMark,
   LoginCard,
   LoginForm,
   PageRoot,
@@ -233,7 +233,7 @@ export default function LoginScreen() {
         <WelcomePanel>
           <Stack spacing={3}>
             <Box>
-              <img src="/icon.png" alt="Supplide logo" width={48} height={48} />
+              <LoginBrandMark aria-hidden="true">S</LoginBrandMark>
               <Typography variant="overline" sx={{ letterSpacing: 2, color: 'text.secondary', fontWeight: 700 }}>Supplide</Typography>
               <Typography component="h1" variant="h3" sx={{ fontWeight: 800, mt: 1.5, lineHeight: 1.1, fontSize: { xs: '2rem', md: '3rem' } }}>Secure partner and admin access</Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mt: 2, maxWidth: 560 }}>Sign in to Supplide to access product pricing, orders, shipping addresses, and administration tools.</Typography>

@@ -35,6 +35,21 @@ export const WelcomePanel = styled(Card)(({ theme }) => ({
   },
 }));
 
+export const LoginBrandMark = styled(Box)(({ theme }) => ({
+  width: 48,
+  height: 48,
+  display: 'grid',
+  placeItems: 'center',
+  marginBottom: theme.spacing(1.5),
+  borderRadius: '50%',
+  backgroundColor: '#65C71A',
+  color: '#FFFFFF',
+  fontSize: '1.25rem',
+  fontWeight: 800,
+  lineHeight: 1,
+  boxShadow: '0 4px 12px rgba(101, 199, 26, 0.22)',
+}));
+
 export const LoginCard = styled(Card)(({ theme }) => ({
   borderRadius: 10,
   padding: theme.spacing(4),

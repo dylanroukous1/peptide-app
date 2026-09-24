@@ -406,6 +406,16 @@ test('login uses deterministic fallback markup to prevent auth hydration mismatc
   assert.doesNotMatch(loginPage, /LoginClient/);
 });
 
+test('login brand mark does not download the oversized application icon', () => {
+  const login = read('src/screens/LoginScreen/index.tsx');
+  const styles = read('src/screens/LoginScreen/styles.ts');
+
+  assert.doesNotMatch(login, /<img[\s\S]*\/icon\.png/);
+  assert.match(login, /<LoginBrandMark aria-hidden="true">S<\/LoginBrandMark>/);
+  assert.match(styles, /export const LoginBrandMark/);
+  assert.match(styles, /width: 48[\s\S]*height: 48/);
+});
+
 test('peptide and company results use localized responsive scrolling', () => {
   const adminPeptides = read('src/screens/AdminPeptidesScreen/index.tsx');
   const adminCompanies = read('src/screens/AdminCompaniesScreen/index.tsx');
