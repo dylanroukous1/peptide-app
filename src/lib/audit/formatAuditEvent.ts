@@ -105,7 +105,8 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
 
   const entityType = event.entity_type.toLowerCase();
   if (entityType === 'peptide') {
-    const name = references.peptides[event.entity_id] || String(event.after_json?.name || 'a product');
+    const name = references.peptides[event.entity_id] || String(event.after_json?.name || event.before_json?.name || 'a product');
+    if (action === 'PEPTIDE_DELETED') return `${actor} permanently deleted peptide ${name}.`;
     if (action.includes('ACTIV')) return `${actor} activated ${name}.`;
     if (action.includes('DEACTIV')) return `${actor} deactivated ${name}.`;
     return `${actor} updated ${name}.`;

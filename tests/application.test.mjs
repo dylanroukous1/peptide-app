@@ -13,6 +13,7 @@ const shippedEnumMigrationPath = 'supabase/migrations/20260924124000_add_shipped
 const shippedTransitionsMigrationPath = 'supabase/migrations/20260924124100_enable_shipped_order_transitions.sql';
 const deleteCompanyMigrationPath = 'supabase/migrations/20260924125000_add_admin_company_deletion.sql';
 const deleteUserMigrationPath = 'supabase/migrations/20260924126000_add_admin_user_deletion.sql';
+const deletePeptideMigrationPath = 'supabase/migrations/20260924127000_add_admin_peptide_deletion.sql';
 
 test('removed wishlist and batch management routes are not addressable', () => {
   assert.equal(existsSync(new URL('../app/wishlist/page.tsx', import.meta.url)), false);
@@ -816,4 +817,32 @@ test('active admins can permanently delete users through one confirmed RPC flow'
   assert.doesNotMatch(users, /type .*user name|delete reason/i);
   assert.match(formatter, /action === 'USER_DELETED'/);
   assert.match(formatter, /event\.before_json\?\.email/);
+});
+
+test('active admins can permanently delete peptides and dependent records atomically', () => {
+  const sql = read(deletePeptideMigrationPath);
+  const peptides = read('src/screens/AdminPeptidesScreen/index.tsx');
+  const formatter = read('src/lib/audit/formatAuditEvent.ts');
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /create or replace function public\.admin_delete_peptide/);
+  assert.match(sql, /security definer[\s\S]*set search_path = public, pg_temp/);
+  assert.match(sql, /role = 'ADMIN'[\s\S]*account_status = 'ACTIVE'/);
+  assert.match(sql, /where id = p_peptide_id\s+for update/);
+  assert.match(sql, /'PEPTIDE_DELETED'/);
+  assert.match(sql, /delete from public\.orders o[\s\S]*oi\.peptide_id = p_peptide_id/);
+  assert.match(sql, /delete from public\.wishlist_requests where peptide_id = p_peptide_id/);
+  assert.match(sql, /delete from public\.batches where peptide_id = p_peptide_id/);
+  assert.match(sql, /delete from public\.peptides where id = p_peptide_id/);
+  assert.match(sql, /revoke delete on table public\.peptides from authenticated/);
+  assert.match(sql, /revoke all on function public\.admin_delete_peptide\(uuid\) from public/);
+  assert.match(sql, /revoke all on function public\.admin_delete_peptide\(uuid\) from anon/);
+  assert.match(peptides, /supabase\.rpc\('admin_delete_peptide'/);
+  assert.match(peptides, /Delete peptide/);
+  assert.match(peptides, /complete order will be deleted/);
+  assert.match(peptides, /This action cannot be undone/);
+  assert.match(peptides, /setPeptides\(\(current\) => current\.filter/);
+  assert.doesNotMatch(peptides, /type .*peptide name|delete reason/i);
+  assert.match(formatter, /action === 'PEPTIDE_DELETED'/);
+  assert.match(formatter, /event\.before_json\?\.name/);
 });

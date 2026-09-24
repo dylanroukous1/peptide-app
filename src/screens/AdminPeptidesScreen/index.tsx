@@ -7,6 +7,10 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Stack,
   Typography,
 } from '@mui/material';
@@ -67,6 +71,9 @@ export default function AdminPeptidesScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [savingPeptideId, setSavingPeptideId] = useState<string | null>(null);
   const [togglingPeptideId, setTogglingPeptideId] = useState<string | null>(null);
+  const [deletePeptide, setDeletePeptide] = useState<PeptideRow | null>(null);
+  const [deletingPeptideId, setDeletingPeptideId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [search, setSearch] = useSessionStorageState('admin-peptide-search', '');
   const { toast, showToast, closeToast } = useAppToast();
 
@@ -263,6 +270,35 @@ export default function AdminPeptidesScreen() {
     );
     setPeptides((current) => current.map((item) => (item.id === row.id ? data : item)));
     setTogglingPeptideId(null);
+  };
+
+  const handleDeletePeptide = async () => {
+    if (!deletePeptide || deletingPeptideId) return;
+
+    setDeletingPeptideId(deletePeptide.id);
+    setDeleteError('');
+
+    const { error } = await supabase.rpc('admin_delete_peptide', {
+      p_peptide_id: deletePeptide.id,
+    });
+
+    if (error) {
+      setDeleteError(error.message);
+      setDeletingPeptideId(null);
+      return;
+    }
+
+    const deletedId = deletePeptide.id;
+    const deletedName = deletePeptide.name;
+    setPeptides((current) => current.filter((peptide) => peptide.id !== deletedId));
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[deletedId];
+      return next;
+    });
+    setDeletePeptide(null);
+    setDeletingPeptideId(null);
+    showToast(`Peptide ${deletedName} deleted permanently.`);
   };
 
   if (sessionLoading || loading) {
@@ -531,6 +567,26 @@ export default function AdminPeptidesScreen() {
                           'Activate'
                         )}
                       </Button>
+
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => {
+                          setDeletePeptide(row);
+                          setDeleteError('');
+                        }}
+                        disabled={Boolean(deletingPeptideId)}
+                        sx={{
+                          minHeight: 56,
+                          borderRadius: 4,
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          gridColumn: { xs: 'auto', md: '1 / -1' },
+                          justifySelf: { xs: 'stretch', md: 'end' },
+                        }}
+                      >
+                        Delete peptide
+                      </Button>
                     </ActionsGrid>
                   </PeptideCard>
                 ))}
@@ -539,6 +595,27 @@ export default function AdminPeptidesScreen() {
           </SectionCard>
         </PageGrid>
       </Stack>
+      <Dialog
+        open={Boolean(deletePeptide)}
+        onClose={() => deletingPeptideId ? undefined : setDeletePeptide(null)}
+        aria-labelledby="delete-peptide-title"
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle id="delete-peptide-title">Delete {deletePeptide?.name}?</DialogTitle>
+        <DialogContent>
+          <Alert severity="error">
+            This permanently deletes the peptide, its batches, legacy requests, and every order containing this peptide. For multi-product orders, the complete order will be deleted to keep totals consistent. Product lines and shipments belonging to those orders will also be removed. This action cannot be undone.
+          </Alert>
+          {deleteError ? <Alert severity="error" sx={{ mt: 2 }}>{deleteError}</Alert> : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeletePeptide(null)} disabled={Boolean(deletingPeptideId)}>Keep peptide</Button>
+          <Button color="error" variant="contained" onClick={() => void handleDeletePeptide()} disabled={Boolean(deletingPeptideId)}>
+            {deletingPeptideId ? <CircularProgress size={18} color="inherit" /> : 'Delete permanently'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );
