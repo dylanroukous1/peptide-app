@@ -846,3 +846,19 @@ test('active admins can permanently delete peptides and dependent records atomic
   assert.match(formatter, /action === 'PEPTIDE_DELETED'/);
   assert.match(formatter, /event\.before_json\?\.name/);
 });
+
+test('admin peptide catalog filters by activity and keeps desktop actions compact', () => {
+  const peptides = read('src/screens/AdminPeptidesScreen/index.tsx');
+  const styles = read('src/screens/AdminPeptidesScreen/styles.ts');
+
+  assert.match(peptides, /admin-peptide-status-filter/);
+  assert.match(peptides, /statusFilter === 'ACTIVE' && peptide\.is_active/);
+  assert.match(peptides, /statusFilter === 'INACTIVE' && !peptide\.is_active/);
+  assert.match(peptides, /<MenuItem value="ALL">All peptides<\/MenuItem>/);
+  assert.match(peptides, /<MenuItem value="ACTIVE">Active<\/MenuItem>/);
+  assert.match(peptides, /<MenuItem value="INACTIVE">Inactive<\/MenuItem>/);
+  assert.match(peptides, /<ActionButtons>[\s\S]*Save changes[\s\S]*Deactivate[\s\S]*Delete peptide/);
+  assert.match(styles, /gridTemplateColumns: 'minmax\(0, 1fr\) 180px'/);
+  assert.match(styles, /justifyContent: 'flex-end'/);
+  assert.match(styles, /theme\.breakpoints\.down\('md'\)[\s\S]*gridTemplateColumns: '1fr'/);
+});

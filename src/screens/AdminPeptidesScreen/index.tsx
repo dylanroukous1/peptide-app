@@ -11,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Stack,
   Typography,
 } from '@mui/material';
@@ -26,7 +27,9 @@ import { useAppToast } from '@/src/hooks/useAppToast';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   ActionsGrid,
+  ActionButtons,
   EmptyWrap,
+  FiltersGrid,
   FormGrid,
   ListWrap,
   MetaGrid,
@@ -75,6 +78,10 @@ export default function AdminPeptidesScreen() {
   const [deletingPeptideId, setDeletingPeptideId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [search, setSearch] = useSessionStorageState('admin-peptide-search', '');
+  const [statusFilter, setStatusFilter] = useSessionStorageState(
+    'admin-peptide-status-filter',
+    'ALL'
+  );
   const { toast, showToast, closeToast } = useAppToast();
 
   const [newPeptide, setNewPeptide] = useState({
@@ -157,9 +164,15 @@ export default function AdminPeptidesScreen() {
 
   const filteredPeptides = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return peptides;
-    return peptides.filter((peptide) => peptide.name.toLowerCase().includes(query));
-  }, [peptides, search]);
+    return peptides.filter((peptide) => {
+      const matchesSearch = !query || peptide.name.toLowerCase().includes(query);
+      const matchesStatus =
+        statusFilter === 'ALL' ||
+        (statusFilter === 'ACTIVE' && peptide.is_active) ||
+        (statusFilter === 'INACTIVE' && !peptide.is_active);
+      return matchesSearch && matchesStatus;
+    });
+  }, [peptides, search, statusFilter]);
 
   const handleCreatePeptide = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -428,13 +441,25 @@ export default function AdminPeptidesScreen() {
               Update pricing, rename entries, or activate and deactivate peptides.
             </Typography>
 
-            <StyledTextField
-              label="Search products"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              fullWidth
-              sx={{ mt: 2 }}
-            />
+            <FiltersGrid>
+              <StyledTextField
+                label="Search products"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                fullWidth
+              />
+              <StyledTextField
+                select
+                label="Status"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                fullWidth
+              >
+                <MenuItem value="ALL">All peptides</MenuItem>
+                <MenuItem value="ACTIVE">Active</MenuItem>
+                <MenuItem value="INACTIVE">Inactive</MenuItem>
+              </StyledTextField>
+            </FiltersGrid>
 
             {filteredPeptides.length === 0 ? (
               <EmptyWrap>
@@ -529,64 +554,46 @@ export default function AdminPeptidesScreen() {
                         fullWidth
                       />
 
-                      <Button
-                        variant="contained"
-                        onClick={() => handleSavePeptide(row.id)}
-                        disabled={savingPeptideId === row.id}
-                        sx={{
-                          minHeight: 56,
-                          borderRadius: 4,
-                          textTransform: 'none',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {savingPeptideId === row.id ? (
-                          <CircularProgress size={18} color="inherit" />
-                        ) : (
-                          'Save'
-                        )}
-                      </Button>
+                      <ActionButtons>
+                        <Button
+                          variant="contained"
+                          onClick={() => handleSavePeptide(row.id)}
+                          disabled={savingPeptideId === row.id}
+                        >
+                          {savingPeptideId === row.id ? (
+                            <CircularProgress size={18} color="inherit" />
+                          ) : (
+                            'Save changes'
+                          )}
+                        </Button>
 
-                      <Button
-                        variant={row.is_active ? 'outlined' : 'contained'}
-                        color={row.is_active ? 'warning' : 'success'}
-                        onClick={() => handleTogglePeptide(row)}
-                        disabled={togglingPeptideId === row.id}
-                        sx={{
-                          minHeight: 56,
-                          borderRadius: 4,
-                          textTransform: 'none',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {togglingPeptideId === row.id ? (
-                          <CircularProgress size={18} color="inherit" />
-                        ) : row.is_active ? (
-                          'Deactivate'
-                        ) : (
-                          'Activate'
-                        )}
-                      </Button>
+                        <Button
+                          variant="outlined"
+                          color={row.is_active ? 'warning' : 'success'}
+                          onClick={() => handleTogglePeptide(row)}
+                          disabled={togglingPeptideId === row.id}
+                        >
+                          {togglingPeptideId === row.id ? (
+                            <CircularProgress size={18} color="inherit" />
+                          ) : row.is_active ? (
+                            'Deactivate'
+                          ) : (
+                            'Activate'
+                          )}
+                        </Button>
 
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => {
-                          setDeletePeptide(row);
-                          setDeleteError('');
-                        }}
-                        disabled={Boolean(deletingPeptideId)}
-                        sx={{
-                          minHeight: 56,
-                          borderRadius: 4,
-                          textTransform: 'none',
-                          fontWeight: 700,
-                          gridColumn: { xs: 'auto', md: '1 / -1' },
-                          justifySelf: { xs: 'stretch', md: 'end' },
-                        }}
-                      >
-                        Delete peptide
-                      </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          onClick={() => {
+                            setDeletePeptide(row);
+                            setDeleteError('');
+                          }}
+                          disabled={Boolean(deletingPeptideId)}
+                        >
+                          Delete peptide
+                        </Button>
+                      </ActionButtons>
                     </ActionsGrid>
                   </PeptideCard>
                 ))}

@@ -50,6 +50,16 @@ export const ListWrap = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(2),
 }));
 
+export const FiltersGrid = styled(Box)(({ theme }) => ({
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) 180px',
+  gap: theme.spacing(1.5),
+  marginTop: theme.spacing(2),
+  [theme.breakpoints.down('sm')]: {
+    gridTemplateColumns: '1fr',
+  },
+}));
+
 export const PeptideCard = styled(Box)(({ theme }) => ({
   border: '1px solid #E2E8F0',
   backgroundColor: '#FFFFFF',
@@ -69,12 +79,35 @@ export const MetaGrid = styled(Box)(({ theme }) => ({
 
 export const ActionsGrid = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: '1fr 180px auto auto',
+  gridTemplateColumns: 'minmax(0, 1fr) 180px',
   gap: theme.spacing(1.5),
   alignItems: 'end',
   marginTop: theme.spacing(2),
   [theme.breakpoints.down('md')]: {
     gridTemplateColumns: '1fr',
+  },
+}));
+
+export const ActionButtons = styled(Box)(({ theme }) => ({
+  gridColumn: '1 / -1',
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: theme.spacing(1.25),
+  paddingTop: theme.spacing(0.25),
+  '& .MuiButton-root': {
+    minHeight: 44,
+    borderRadius: 10,
+    textTransform: 'none',
+    fontWeight: 700,
+    width: 'auto',
+  },
+  [theme.breakpoints.down('md')]: {
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    '& .MuiButton-root': {
+      width: '100%',
+      minHeight: 48,
+    },
   },
 }));
 
