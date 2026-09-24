@@ -9,6 +9,10 @@ import {
   Checkbox,
   CircularProgress,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   Stack,
   Typography,
@@ -94,6 +98,9 @@ export default function AdminCompaniesScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [savingCompanyId, setSavingCompanyId] = useState<string | null>(null);
   const [togglingCompanyId, setTogglingCompanyId] = useState<string | null>(null);
+  const [deleteCompany, setDeleteCompany] = useState<CompanyRow | null>(null);
+  const [deletingCompanyId, setDeletingCompanyId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [savingAddressId, setSavingAddressId] = useState<string | null>(null);
   const [showCreateAddress, setShowCreateAddress] = useState(false);
   const [createAddress, setCreateAddress] = useState<AddressDraft>(emptyAddress);
@@ -434,6 +441,38 @@ export default function AdminCompaniesScreen() {
       current.map((company) => (company.id === row.id ? { ...data, addresses: company.addresses } : company))
     );
     setTogglingCompanyId(null);
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!deleteCompany || deletingCompanyId) return;
+    setDeletingCompanyId(deleteCompany.id);
+    setDeleteError('');
+
+    const { error } = await supabase.rpc('admin_delete_company', {
+      p_company_id: deleteCompany.id,
+    });
+
+    if (error) {
+      setDeleteError(error.message);
+      setDeletingCompanyId(null);
+      return;
+    }
+
+    const deletedId = deleteCompany.id;
+    setCompanies((current) => current.filter((company) => company.id !== deletedId));
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[deletedId];
+      return next;
+    });
+    setNewAddressDrafts((current) => {
+      const next = { ...current };
+      delete next[deletedId];
+      return next;
+    });
+    showToast(`Company ${deleteCompany.name} was permanently deleted.`);
+    setDeleteCompany(null);
+    setDeletingCompanyId(null);
   };
 
   if (sessionLoading || loading) {
@@ -868,6 +907,19 @@ export default function AdminCompaniesScreen() {
                           'Activate'
                         )}
                       </Button>
+
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => {
+                          setDeleteCompany(row);
+                          setDeleteError('');
+                        }}
+                        disabled={Boolean(deletingCompanyId)}
+                        sx={{ minHeight: 48, borderRadius: 4, textTransform: 'none', fontWeight: 700 }}
+                      >
+                        Delete company
+                      </Button>
                     </ButtonRow>
                   </CompanyCard>
                 ))}
@@ -876,6 +928,27 @@ export default function AdminCompaniesScreen() {
           </SectionCard>
         </PageGrid>
       </Stack>
+      <Dialog
+        open={Boolean(deleteCompany)}
+        onClose={() => deletingCompanyId ? undefined : setDeleteCompany(null)}
+        aria-labelledby="delete-company-title"
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle id="delete-company-title">Delete {deleteCompany?.name}?</DialogTitle>
+        <DialogContent>
+          <Alert severity="error">
+            This permanently deletes the company, its addresses, orders, product lines, shipments, and legacy requests. Assigned users will remain but will no longer belong to a company. This action cannot be undone.
+          </Alert>
+          {deleteError ? <Alert severity="error" sx={{ mt: 2 }}>{deleteError}</Alert> : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteCompany(null)} disabled={Boolean(deletingCompanyId)}>Keep company</Button>
+          <Button color="error" variant="contained" onClick={() => void handleDeleteCompany()} disabled={Boolean(deletingCompanyId)}>
+            {deletingCompanyId ? <CircularProgress size={18} color="inherit" /> : 'Delete permanently'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );

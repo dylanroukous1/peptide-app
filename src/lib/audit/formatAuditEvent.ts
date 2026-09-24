@@ -111,7 +111,8 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
     return `${actor} updated ${name}.`;
   }
   if (entityType === 'company') {
-    const name = references.companies[event.entity_id] || String(event.after_json?.name || 'a company');
+    const name = references.companies[event.entity_id] || String(event.after_json?.name || event.before_json?.name || 'a company');
+    if (action === 'COMPANY_DELETED') return `${actor} permanently deleted company ${name}.`;
     if (action === 'COMPANY_ADDRESS_CREATED') return `${actor} added a shipping address for ${name}.`;
     if (action === 'COMPANY_ADDRESS_UPDATED') {
       return event.after_json?.is_default

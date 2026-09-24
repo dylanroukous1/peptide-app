@@ -11,6 +11,7 @@ const reactivationMigrationPath = 'supabase/migrations/20260924120000_add_order_
 const deleteOrderMigrationPath = 'supabase/migrations/20260924123000_replace_voiding_with_order_deletion.sql';
 const shippedEnumMigrationPath = 'supabase/migrations/20260924124000_add_shipped_order_status.sql';
 const shippedTransitionsMigrationPath = 'supabase/migrations/20260924124100_enable_shipped_order_transitions.sql';
+const deleteCompanyMigrationPath = 'supabase/migrations/20260924125000_add_admin_company_deletion.sql';
 
 test('removed wishlist and batch management routes are not addressable', () => {
   assert.equal(existsSync(new URL('../app/wishlist/page.tsx', import.meta.url)), false);
@@ -762,4 +763,28 @@ test('admin and customer order views present shipped status consistently', () =>
   assert.match(adminOrders, /'APPROVED', 'IN_PRODUCTION', 'SHIPPED', 'FULFILLED'/);
   assert.match(userOrders, /order\.status === 'SHIPPED' \? 'Shipped'/);
   assert.match(statusChip, /case 'SHIPPED'/);
+});
+
+test('active admins can permanently delete companies through one confirmed RPC flow', () => {
+  const sql = read(deleteCompanyMigrationPath);
+  const companies = read('src/screens/AdminCompaniesScreen/index.tsx');
+  const formatter = read('src/lib/audit/formatAuditEvent.ts');
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /create or replace function public\.admin_delete_company/);
+  assert.match(sql, /security definer[\s\S]*set search_path = public, pg_temp/);
+  assert.match(sql, /role = 'ADMIN'[\s\S]*account_status = 'ACTIVE'/);
+  assert.match(sql, /where id = p_company_id\s+for update/);
+  assert.match(sql, /delete from public\.wishlist_requests where company_id = p_company_id/);
+  assert.match(sql, /delete from public\.orders where company_id = p_company_id/);
+  assert.match(sql, /delete from public\.companies where id = p_company_id/);
+  assert.match(sql, /revoke delete on table public\.companies from authenticated/);
+  assert.match(sql, /revoke all on function public\.admin_delete_company\(uuid\) from public/);
+  assert.match(sql, /revoke all on function public\.admin_delete_company\(uuid\) from anon/);
+  assert.match(companies, /supabase\.rpc\('admin_delete_company'/);
+  assert.match(companies, /Delete company/);
+  assert.match(companies, /This action cannot be undone/);
+  assert.match(companies, /setCompanies\(\(current\) => current\.filter/);
+  assert.doesNotMatch(companies, /type .*company name|delete reason/i);
+  assert.match(formatter, /action === 'COMPANY_DELETED'/);
 });
