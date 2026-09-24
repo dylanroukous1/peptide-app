@@ -190,15 +190,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    void supabase.auth.getSession().then(({ data, error }) => {
+    const restoreSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
       if (!active) return;
       if (error) {
         console.error('Unable to restore authentication session:', error.message);
         resetSession();
         return;
       }
-      void loadProfile(data.session?.user ?? null);
-    });
+      await loadProfile(data.session?.user ?? null);
+    };
+
+    void restoreSession();
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void restoreSession();
+    };
+    window.addEventListener('pageshow', handlePageShow);
 
     const {
       data: { subscription },
@@ -212,6 +220,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false;
+      window.removeEventListener('pageshow', handlePageShow);
       subscription.unsubscribe();
     };
   }, [loadProfile, resetSession]);

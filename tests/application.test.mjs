@@ -530,6 +530,27 @@ test('session provider owns the only auth listener and clears user-scoped bootst
   assert.match(provider, /resetSession/);
 });
 
+test('restored browser tabs revalidate the persisted Supabase session', () => {
+  const sessionProvider = read('src/hooks/useSessionUser.tsx');
+
+  assert.match(sessionProvider, /const handlePageShow = \(event: PageTransitionEvent\)/);
+  assert.match(sessionProvider, /if \(event\.persisted\) void restoreSession\(\)/);
+  assert.match(sessionProvider, /window\.addEventListener\('pageshow', handlePageShow\)/);
+  assert.match(sessionProvider, /window\.removeEventListener\('pageshow', handlePageShow\)/);
+  assert.equal((sessionProvider.match(/onAuthStateChange/g) || []).length, 1);
+});
+
+test('MUI Emotion styles use the Next App Router server insertion registry', () => {
+  const providers = read('src/components/AppProviders/index.tsx');
+  const registry = read('src/components/EmotionRegistry/index.tsx');
+
+  assert.match(providers, /<EmotionRegistry>[\s\S]*<ThemeProvider/);
+  assert.match(registry, /useServerInsertedHTML/);
+  assert.match(registry, /createCache\(\{ key: 'mui', prepend: true \}\)/);
+  assert.match(registry, /<CacheProvider value=\{cache\}>\{children\}<\/CacheProvider>/);
+  assert.match(registry, /data-emotion=\{`\$\{cache\.key\} \$\{names\.join\(' '\)\}`\}/);
+});
+
 test('customer order catalog supports persisted case-insensitive product search', () => {
   const orderScreen = read('src/screens/UserDashboardScreen/index.tsx');
   assert.match(orderScreen, /customer-order-product-search/);

@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { SessionProvider } from '@/src/hooks/useSessionUser';
+import EmotionRegistry from '@/src/components/EmotionRegistry';
 
 const theme = createTheme({
   palette: {
@@ -48,9 +49,11 @@ const theme = createTheme({
 
 export default function AppProviders({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <SessionProvider>{children}</SessionProvider>
-    </ThemeProvider>
+    <EmotionRegistry>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <SessionProvider>{children}</SessionProvider>
+      </ThemeProvider>
+    </EmotionRegistry>
   );
 }
