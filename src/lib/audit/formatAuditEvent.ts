@@ -125,7 +125,8 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
     return `${actor} updated ${name}’s company details.`;
   }
   if (entityType === 'profile' || entityType === 'user') {
-    const name = references.users[event.entity_id] || String(event.after_json?.email || 'a user');
+    const name = references.users[event.entity_id] || String(event.after_json?.email || event.before_json?.email || 'a user');
+    if (action === 'USER_DELETED') return `${actor} permanently deleted user ${name}.`;
     if (action.includes('CREAT')) return `A new user account was created for ${name}.`;
     return `${actor} updated the account for ${name}.`;
   }

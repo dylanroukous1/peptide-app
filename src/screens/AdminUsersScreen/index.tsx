@@ -7,6 +7,10 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -109,6 +113,9 @@ export default function AdminUsersScreen() {
     status: 'ALL',
   });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [deleteUser, setDeleteUser] = useState<ProfileRow | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast, showToast, closeToast } = useAppToast();
@@ -399,6 +406,35 @@ export default function AdminUsersScreen() {
       current.filter((request) => request.email.trim().toLowerCase() !== email.toLowerCase())
     );
     setCreatingUser(false);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteUser || deletingUserId || deleteUser.id === profile?.id) return;
+
+    setDeletingUserId(deleteUser.id);
+    setDeleteError('');
+
+    const { error } = await supabase.rpc('admin_delete_user', {
+      p_user_id: deleteUser.id,
+    });
+
+    if (error) {
+      setDeleteError(error.message);
+      setDeletingUserId(null);
+      return;
+    }
+
+    const deletedId = deleteUser.id;
+    const deletedLabel = deleteUser.email || `${deleteUser.first_name} ${deleteUser.last_name}`;
+    setUsers((current) => current.filter((user) => user.id !== deletedId));
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[deletedId];
+      return next;
+    });
+    setDeleteUser(null);
+    setDeletingUserId(null);
+    showToast(`User ${deletedLabel} deleted permanently.`);
   };
 
   const prefillCreateFromRequest = (request: AccountRequestRow) => {
@@ -934,6 +970,23 @@ export default function AdminUsersScreen() {
                         {savingUserId === user.id ? <CircularProgress size={18} color="inherit" /> : 'Save User'}
                       </Button>
                     </EditGrid>
+
+                    {user.id !== profile.id ? (
+                      <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 1.5 }}>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          onClick={() => {
+                            setDeleteUser(user);
+                            setDeleteError('');
+                          }}
+                          disabled={Boolean(deletingUserId)}
+                          sx={{ minHeight: 44, borderRadius: 4, textTransform: 'none', fontWeight: 700 }}
+                        >
+                          Delete user
+                        </Button>
+                      </Stack>
+                    ) : null}
                   </UserCard>
                 );
               })}
@@ -941,6 +994,29 @@ export default function AdminUsersScreen() {
           )}
         </SectionCard>
       </Stack>
+      <Dialog
+        open={Boolean(deleteUser)}
+        onClose={() => deletingUserId ? undefined : setDeleteUser(null)}
+        aria-labelledby="delete-user-title"
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle id="delete-user-title">
+          Delete {deleteUser?.email || `${deleteUser?.first_name || ''} ${deleteUser?.last_name || ''}`.trim()}?
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error">
+            This permanently deletes the user&apos;s sign-in account, profile, orders, product lines, shipments, and legacy requests. Their company and the deletion audit record will remain. This action cannot be undone.
+          </Alert>
+          {deleteError ? <Alert severity="error" sx={{ mt: 2 }}>{deleteError}</Alert> : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteUser(null)} disabled={Boolean(deletingUserId)}>Keep user</Button>
+          <Button color="error" variant="contained" onClick={() => void handleDeleteUser()} disabled={Boolean(deletingUserId)}>
+            {deletingUserId ? <CircularProgress size={18} color="inherit" /> : 'Delete permanently'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );

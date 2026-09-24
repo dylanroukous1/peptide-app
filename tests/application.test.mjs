@@ -12,6 +12,7 @@ const deleteOrderMigrationPath = 'supabase/migrations/20260924123000_replace_voi
 const shippedEnumMigrationPath = 'supabase/migrations/20260924124000_add_shipped_order_status.sql';
 const shippedTransitionsMigrationPath = 'supabase/migrations/20260924124100_enable_shipped_order_transitions.sql';
 const deleteCompanyMigrationPath = 'supabase/migrations/20260924125000_add_admin_company_deletion.sql';
+const deleteUserMigrationPath = 'supabase/migrations/20260924126000_add_admin_user_deletion.sql';
 
 test('removed wishlist and batch management routes are not addressable', () => {
   assert.equal(existsSync(new URL('../app/wishlist/page.tsx', import.meta.url)), false);
@@ -787,4 +788,32 @@ test('active admins can permanently delete companies through one confirmed RPC f
   assert.match(companies, /setCompanies\(\(current\) => current\.filter/);
   assert.doesNotMatch(companies, /type .*company name|delete reason/i);
   assert.match(formatter, /action === 'COMPANY_DELETED'/);
+});
+
+test('active admins can permanently delete users through one confirmed RPC flow', () => {
+  const sql = read(deleteUserMigrationPath);
+  const users = read('src/screens/AdminUsersScreen/index.tsx');
+  const formatter = read('src/lib/audit/formatAuditEvent.ts');
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /create or replace function public\.admin_delete_user/);
+  assert.match(sql, /security definer[\s\S]*set search_path = public, pg_temp/);
+  assert.match(sql, /role = 'ADMIN'[\s\S]*account_status = 'ACTIVE'/);
+  assert.match(sql, /p_user_id = v_admin_id[\s\S]*cannot delete your own account/i);
+  assert.match(sql, /where id = p_user_id\s+for update/);
+  assert.match(sql, /'USER_DELETED'/);
+  assert.match(sql, /delete from public\.wishlist_requests where user_id = p_user_id/);
+  assert.match(sql, /delete from public\.orders where user_id = p_user_id/);
+  assert.match(sql, /delete from auth\.users where id = p_user_id/);
+  assert.match(sql, /revoke delete on table public\.profiles from authenticated/);
+  assert.match(sql, /revoke all on function public\.admin_delete_user\(uuid\) from public/);
+  assert.match(sql, /revoke all on function public\.admin_delete_user\(uuid\) from anon/);
+  assert.match(users, /supabase\.rpc\('admin_delete_user'/);
+  assert.match(users, /Delete user/);
+  assert.match(users, /This action cannot be undone/);
+  assert.match(users, /setUsers\(\(current\) => current\.filter/);
+  assert.match(users, /user\.id !== profile\.id/);
+  assert.doesNotMatch(users, /type .*user name|delete reason/i);
+  assert.match(formatter, /action === 'USER_DELETED'/);
+  assert.match(formatter, /event\.before_json\?\.email/);
 });
