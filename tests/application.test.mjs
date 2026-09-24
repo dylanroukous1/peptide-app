@@ -5,6 +5,12 @@ import { test } from 'node:test';
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const migrationPath = 'supabase/migrations/20260922093000_seed_supplide_pricing.sql';
 const multiOrderingMigrationPath = 'supabase/migrations/20260923090000_enable_multi_product_orders.sql';
+const fulfillmentMigrationPath = 'supabase/migrations/20260924100000_admin_fulfillment_addresses_discounts.sql';
+const voidMigrationPath = 'supabase/migrations/20260924113000_add_order_voiding.sql';
+const reactivationMigrationPath = 'supabase/migrations/20260924120000_add_order_reactivation.sql';
+const deleteOrderMigrationPath = 'supabase/migrations/20260924123000_replace_voiding_with_order_deletion.sql';
+const shippedEnumMigrationPath = 'supabase/migrations/20260924124000_add_shipped_order_status.sql';
+const shippedTransitionsMigrationPath = 'supabase/migrations/20260924124100_enable_shipped_order_transitions.sql';
 
 test('removed wishlist and batch management routes are not addressable', () => {
   assert.equal(existsSync(new URL('../app/wishlist/page.tsx', import.meta.url)), false);
@@ -517,4 +523,243 @@ test('customer order catalog supports persisted case-insensitive product search'
   assert.match(orderScreen, /label="Search products"/);
   assert.match(orderScreen, /No matching products/);
   assert.match(orderScreen, /filteredPeptides\.map/);
+});
+
+test('fulfillment migration preserves orders and adds authoritative discount totals', () => {
+  const sql = read(fulfillmentMigrationPath);
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /add column if not exists discount_type text/);
+  assert.match(sql, /discount_amount numeric\(14,2\) not null default 0/);
+  assert.match(sql, /final_total numeric\(14,2\)/);
+  assert.match(sql, /final_total = coalesce\(final_total, total_price\)/);
+  assert.match(sql, /new\.final_total := new\.total_price/);
+  assert.doesNotMatch(sql, /delete from public\.(orders|order_items|shipments)/i);
+  assert.doesNotMatch(sql, /update public\.order_items set[\s\S]*unit_price/i);
+});
+
+test('shipment RPC validates active admins, order state, dates, and audits changes', () => {
+  const sql = read(fulfillmentMigrationPath);
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const userOrders = read('src/screens/UserOrdersScreen/index.tsx');
+
+  assert.match(sql, /create or replace function public\.admin_upsert_order_shipment/);
+  assert.match(sql, /p\.role = 'ADMIN' and p\.account_status = 'ACTIVE'/);
+  assert.match(sql, /v_order\.status in \('CANCELLED', 'EXPIRED'\)/);
+  assert.match(sql, /Estimated delivery cannot precede ship date/);
+  assert.match(sql, /on conflict \(order_id\) do update/);
+  assert.match(sql, /v_order\.status = 'APPROVED'[\s\S]*'IN_PRODUCTION'/);
+  assert.match(sql, /ORDER_TRACKING_ADDED/);
+  assert.match(sql, /ORDER_SHIPMENT_UPDATED/);
+  assert.match(adminOrders, /admin_upsert_order_shipment/);
+  assert.match(adminOrders, /Shipping &amp; Tracking/);
+  assert.match(userOrders, /Copy tracking/);
+  assert.match(userOrders, /encodeURIComponent\(tracking\.trim\(\)\)/);
+});
+
+test('order cancellation is available as a valid lifecycle transition', () => {
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const statusSql = read(multiOrderingMigrationPath);
+
+  assert.match(adminOrders, /SUBMITTED: \['UNDER_REVIEW', 'APPROVED', 'CANCELLED', 'EXPIRED'\]/);
+  assert.match(adminOrders, /IN_PRODUCTION: \['SHIPPED', 'CANCELLED'\]/);
+  assert.match(adminOrders, /admin_update_order_status/);
+  assert.doesNotMatch(adminOrders, /\.from\('orders'\)[\s\S]*\.delete\(/);
+  assert.match(statusSql, /cancelled_at = case when p_new_status in \('CANCELLED', 'EXPIRED'\) then now\(\)/);
+});
+
+test('company addresses are atomic, company-scoped, and limited to one default', () => {
+  const sql = read(fulfillmentMigrationPath);
+  const companies = read('src/screens/AdminCompaniesScreen/index.tsx');
+
+  assert.match(sql, /create unique index if not exists company_addresses_one_default_per_company/);
+  assert.match(sql, /create or replace function public\.admin_create_company/);
+  assert.match(sql, /insert into public\.companies[\s\S]*insert into public\.company_addresses/);
+  assert.match(sql, /where id = p_address_id and company_id = p_company_id for update/);
+  assert.match(sql, /update public\.company_addresses set is_default = false[\s\S]*where company_id = p_company_id/);
+  assert.match(companies, /Primary Shipping Address/);
+  assert.match(companies, /admin_upsert_company_address/);
+  assert.match(companies, /Shipping addresses \(\{row\.addresses\.length\}\)/);
+});
+
+test('discount RPC calculates totals server-side and both roles display final totals', () => {
+  const sql = read(fulfillmentMigrationPath);
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const userOrders = read('src/screens/UserOrdersScreen/index.tsx');
+
+  assert.match(sql, /create or replace function public\.admin_set_order_discount/);
+  assert.match(sql, /select \* into v_order from public\.orders where id = p_order_id for update/);
+  assert.match(sql, /v_discount_value > 100/);
+  assert.match(sql, /v_discount_value > v_order\.total_price/);
+  assert.match(sql, /v_discount_amount := round\(v_order\.total_price \* v_discount_value \/ 100, 2\)/);
+  assert.match(sql, /v_final_total := round\(v_order\.total_price - v_discount_amount, 2\)/);
+  assert.match(sql, /revoke all on function public\.admin_set_order_discount\(uuid,text,numeric\) from public, anon/);
+  for (const screen of [adminOrders, userOrders]) {
+    assert.match(screen, /Subtotal/);
+    assert.match(screen, /Discount/);
+    assert.match(screen, /Final total|Final Total/);
+  }
+});
+
+test('new shipment, discount, and address audit actions are human-readable', () => {
+  const formatter = read('src/lib/audit/formatAuditEvent.ts');
+
+  assert.match(formatter, /ORDER_TRACKING_ADDED/);
+  assert.match(formatter, /updated shipping information for order/);
+  assert.match(formatter, /ORDER_DISCOUNT_UPDATED/);
+  assert.match(formatter, /updated the default shipping address/);
+  assert.match(formatter, /with a primary shipping address/);
+});
+
+test('admin orders use progressive disclosure and compact workflow controls', () => {
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const styles = read('src/screens/AdminOrdersScreen/styles.ts');
+
+  assert.match(adminOrders, /aria-expanded=\{expanded\}/);
+  assert.match(adminOrders, /View details/);
+  assert.match(adminOrders, /Pricing &amp; Discount/);
+  assert.match(adminOrders, /Shipping &amp; Tracking/);
+  assert.match(adminOrders, /Edit tracking/);
+  assert.match(adminOrders, /Edit discount/);
+  assert.match(adminOrders, /Update status/);
+  assert.doesNotMatch(adminOrders, /Save Status/);
+  assert.match(adminOrders, /disabled=\{!selectedStatus \|\| selectedStatus === order\.status/);
+  assert.match(adminOrders, /availableStatuses\.map[\s\S]*statusLabel\(status\)/);
+  assert.match(adminOrders, /Delete Order/);
+  assert.match(adminOrders, /ActionPanel actiontone="pricing"/);
+  assert.match(adminOrders, /ActionPanel actiontone="shipping"/);
+  assert.match(adminOrders, /ActionPanel actiontone="status"/);
+  assert.match(adminOrders, /variant=\{expanded \? 'outlined' : 'contained'\}/);
+  assert.match(styles, /gridTemplateColumns: 'repeat\(2, minmax\(0, 1fr\)\)'/);
+  assert.match(styles, /theme\.breakpoints\.down\('md'\)[\s\S]*gridTemplateColumns: '1fr'/);
+});
+
+test('void migration preserves lifecycle data and records explicit void metadata', () => {
+  const sql = read(voidMigrationPath);
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /add column if not exists voided_at timestamptz/);
+  assert.match(sql, /add column if not exists voided_by uuid/);
+  assert.match(sql, /foreign key \(voided_by\) references public\.profiles\(id\) on delete restrict/);
+  assert.match(sql, /add column if not exists void_reason text/);
+  assert.match(sql, /length\(btrim\(void_reason\)\) >= 5/);
+  assert.match(sql, /create index if not exists idx_orders_voided_at/);
+  assert.doesNotMatch(sql, /delete from public\.(orders|order_items|shipments)/i);
+  assert.doesNotMatch(sql, /update public\.(order_items|shipments)/i);
+  assert.doesNotMatch(sql, /set\s+status\s*=/i);
+});
+
+test('void RPC authorizes active admins, locks orders, and rejects unsafe requests', () => {
+  const sql = read(voidMigrationPath);
+
+  assert.match(sql, /create or replace function public\.admin_void_order/);
+  assert.match(sql, /security definer[\s\S]*set search_path = public, pg_temp/);
+  assert.match(sql, /auth\.uid\(\) is null/);
+  assert.match(sql, /role = 'ADMIN'[\s\S]*account_status = 'ACTIVE'/);
+  assert.match(sql, /length\(v_reason\) < 5/);
+  assert.match(sql, /where id = p_order_id\s+for update/);
+  assert.match(sql, /v_order\.voided_at is not null[\s\S]*Order is already voided/);
+  assert.match(sql, /'ORDER_VOIDED'/);
+  assert.match(sql, /'previous_status', v_order\.status/);
+  assert.match(sql, /'final_total', v_order\.final_total/);
+  assert.match(sql, /revoke all on function public\.admin_void_order\(uuid, text\) from public/);
+  assert.match(sql, /revoke all on function public\.admin_void_order\(uuid, text\) from anon/);
+  assert.match(sql, /grant execute on function public\.admin_void_order\(uuid, text\) to authenticated/);
+});
+
+test('applied void migrations are superseded by secure permanent deletion', () => {
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const sql = read(deleteOrderMigrationPath);
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.doesNotMatch(sql, /where voided_at is not null/);
+  assert.match(sql, /drop function if exists public\.admin_void_order/);
+  assert.match(sql, /drop function if exists public\.admin_reactivate_order/);
+  assert.match(sql, /drop column if exists voided_at/);
+  assert.match(sql, /create or replace function public\.admin_delete_order/);
+  assert.match(adminOrders, /supabase\.rpc\('admin_delete_order'/);
+  assert.doesNotMatch(adminOrders, /admin_void_order|admin_reactivate_order|Void order|Reactivate order/);
+});
+
+test('order customer profile relationships remain explicit', () => {
+  const workspace = read('src/lib/workspace/loadWorkspace.ts');
+  const userOrders = read('src/screens/UserOrdersScreen/index.tsx');
+
+  assert.match(workspace, /user:profiles!orders_user_id_fkey/);
+  assert.match(userOrders, /user:profiles!orders_user_id_fkey/);
+  assert.doesNotMatch(workspace, /user:profiles\(first_name/);
+  assert.doesNotMatch(userOrders, /user:profiles\(first_name/);
+});
+
+test('void audit activity is human-readable and uses the discounted final total', () => {
+  const formatter = read('src/lib/audit/formatAuditEvent.ts');
+
+  assert.match(formatter, /action === 'ORDER_VOIDED'/);
+  assert.match(formatter, /event\.after_json\?\.final_total/);
+  assert.match(formatter, /voided order \$\{orderNumber\} for \$\{money\(finalTotal\)\}\. Reason:/);
+});
+
+test('reactivation RPC safely restores a voided order without changing lifecycle status', () => {
+  const sql = read(reactivationMigrationPath);
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /create or replace function public\.admin_reactivate_order/);
+  assert.match(sql, /security definer[\s\S]*set search_path = public, pg_temp/);
+  assert.match(sql, /role = 'ADMIN'[\s\S]*account_status = 'ACTIVE'/);
+  assert.match(sql, /length\(v_reason\) < 5/);
+  assert.match(sql, /where id = p_order_id\s+for update/);
+  assert.match(sql, /v_order\.voided_at is null[\s\S]*Order is not voided/);
+  assert.match(sql, /voided_at = null[\s\S]*voided_by = null[\s\S]*void_reason = null/);
+  assert.match(sql, /'ORDER_REACTIVATED'/);
+  assert.doesNotMatch(sql, /set\s+status\s*=/i);
+  assert.doesNotMatch(sql, /delete from public\./i);
+  assert.match(sql, /revoke all on function public\.admin_reactivate_order\(uuid, text\) from public/);
+  assert.match(sql, /revoke all on function public\.admin_reactivate_order\(uuid, text\) from anon/);
+});
+
+test('permanent order deletion is admin-only, confirmed, audited, and locally reflected', () => {
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const formatter = read('src/lib/audit/formatAuditEvent.ts');
+  const sql = read(deleteOrderMigrationPath);
+
+  assert.match(sql, /role = 'ADMIN'[\s\S]*account_status = 'ACTIVE'/);
+  assert.match(sql, /where id = p_order_id\s+for update/);
+  assert.match(sql, /'ORDER_DELETED'/);
+  assert.match(sql, /delete from public\.orders where id = v_order\.id/);
+  assert.match(sql, /revoke delete on table public\.orders from authenticated/);
+  assert.match(sql, /revoke all on function public\.admin_delete_order\(uuid\) from public/);
+  assert.match(sql, /revoke all on function public\.admin_delete_order\(uuid\) from anon/);
+  assert.match(adminOrders, /setOrders\(\(current\) => current\?\.filter/);
+  assert.match(adminOrders, /Delete order/);
+  assert.match(adminOrders, /This action cannot be undone/);
+  assert.doesNotMatch(adminOrders, /type .*order number|reason/i);
+  assert.match(formatter, /action === 'ORDER_DELETED'/);
+});
+
+test('shipped status is added safely and enforced as a lifecycle transition', () => {
+  const enumSql = read(shippedEnumMigrationPath);
+  const transitionSql = read(shippedTransitionsMigrationPath);
+
+  assert.match(enumSql, /alter type public\.order_status add value if not exists 'SHIPPED' after 'IN_PRODUCTION'/);
+  assert.match(transitionSql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(transitionSql, /add column if not exists shipped_at timestamptz/);
+  assert.match(transitionSql, /v_before\.status = 'IN_PRODUCTION' and p_new_status in \('SHIPPED', 'CANCELLED'\)/);
+  assert.match(transitionSql, /v_before\.status = 'SHIPPED' and p_new_status in \('FULFILLED', 'CANCELLED'\)/);
+  assert.match(transitionSql, /shipped_at = case when p_new_status = 'SHIPPED' then now\(\)/);
+  assert.match(transitionSql, /role = 'ADMIN'[\s\S]*account_status = 'ACTIVE'/);
+});
+
+test('admin and customer order views present shipped status consistently', () => {
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const userOrders = read('src/screens/UserOrdersScreen/index.tsx');
+  const statusChip = read('src/commons/StatusChip/index.tsx');
+
+  assert.match(adminOrders, /'SHIPPED'/);
+  assert.match(adminOrders, /SHIPPED: \['FULFILLED', 'CANCELLED'\]/);
+  assert.match(adminOrders, /label="Filter by status"/);
+  assert.match(adminOrders, /label="Change status to"/);
+  assert.match(adminOrders, /Only valid next statuses are shown/);
+  assert.match(adminOrders, /'APPROVED', 'IN_PRODUCTION', 'SHIPPED', 'FULFILLED'/);
+  assert.match(userOrders, /order\.status === 'SHIPPED' \? 'Shipped'/);
+  assert.match(statusChip, /case 'SHIPPED'/);
 });

@@ -36,6 +36,10 @@ export type AdminOrder = {
   approved_quantity: number | null;
   unit_price_at_submission: number | null;
   total_price: number;
+  discount_type: 'PERCENT' | 'FIXED' | null;
+  discount_value: number | null;
+  discount_amount: number;
+  final_total: number;
   status: string;
   user_notes: string | null;
   submitted_at: string;
@@ -58,9 +62,12 @@ export type AdminOrder = {
   } | null;
   address?: { label: string | null; line1: string; city: string } | null;
   shipment?: {
+    id: string;
     tracking_number: string | null;
+    ship_date: string | null;
     estimated_delivery_date: string | null;
     carrier_name: string | null;
+    shipment_notes: string | null;
   } | null;
 };
 
@@ -89,6 +96,10 @@ export async function loadAdminOrders(): Promise<AdminOrder[]> {
       approved_quantity,
       unit_price_at_submission,
       total_price,
+      discount_type,
+      discount_value,
+      discount_amount,
+      final_total,
       status,
       user_notes,
       submitted_at,
@@ -103,10 +114,10 @@ export async function loadAdminOrders(): Promise<AdminOrder[]> {
       ),
       peptide:peptides(name),
       company:companies(name),
-      user:profiles(first_name, last_name, email),
+      user:profiles!orders_user_id_fkey(first_name, last_name, email),
       batch:batches(batch_code, eta_date, peptide:peptides(name)),
       address:company_addresses(label, line1, city),
-      shipment:shipments(tracking_number, estimated_delivery_date, carrier_name)
+      shipment:shipments(id, tracking_number, ship_date, estimated_delivery_date, carrier_name, shipment_notes)
     `)
     .order('submitted_at', { ascending: false });
 

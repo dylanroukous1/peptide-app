@@ -21,12 +21,16 @@ function normalizeStatusKey(status?: string | null) {
       return 'approved';
     case 'IN_PRODUCTION':
       return 'inProduction';
+    case 'SHIPPED':
+      return 'shipped';
     case 'FULFILLED':
       return 'fulfilled';
     case 'CANCELLED':
       return 'cancelled';
     case 'EXPIRED':
       return 'expired';
+    case 'VOIDED':
+      return 'voided';
     case 'PENDING':
       return 'pending';
     case 'ACTIVE':

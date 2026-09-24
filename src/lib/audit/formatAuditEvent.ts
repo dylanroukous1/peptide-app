@@ -77,6 +77,31 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
     }
     return `${actor} changed order ${orderNumber} from ${before} to ${after}.`;
   }
+  if (action === 'ORDER_TRACKING_ADDED') {
+    return `${actor} added ${String(event.after_json?.carrier_name || 'carrier')} tracking ${String(event.after_json?.tracking_number || '')} to order ${orderNumber}.`;
+  }
+  if (action === 'ORDER_SHIPMENT_UPDATED') {
+    return `${actor} updated shipping information for order ${orderNumber}.`;
+  }
+  if (action === 'ORDER_DISCOUNT_UPDATED') {
+    return `${actor} applied a ${money(event.after_json?.discount_amount)} discount to order ${orderNumber}.`;
+  }
+  if (action === 'ORDER_DISCOUNT_REMOVED') {
+    return `${actor} removed the discount from order ${orderNumber}.`;
+  }
+  if (action === 'ORDER_VOIDED') {
+    const finalTotal = event.after_json?.final_total ?? order?.totalPrice ?? 0;
+    const reason = String(event.after_json?.reason || 'No reason recorded').trim();
+    return `${actor} voided order ${orderNumber} for ${money(finalTotal)}. Reason: ${reason}.`;
+  }
+  if (action === 'ORDER_REACTIVATED') {
+    const reason = String(event.after_json?.reason || 'No reason recorded').trim();
+    return `${actor} reactivated order ${orderNumber}. Reason: ${reason}.`;
+  }
+  if (action === 'ORDER_DELETED') {
+    const deletedOrderNumber = String(event.before_json?.order_number || orderNumber);
+    return `${actor} permanently deleted order ${deletedOrderNumber}.`;
+  }
 
   const entityType = event.entity_type.toLowerCase();
   if (entityType === 'peptide') {
@@ -87,7 +112,15 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
   }
   if (entityType === 'company') {
     const name = references.companies[event.entity_id] || String(event.after_json?.name || 'a company');
-    if (action.includes('CREAT')) return `${actor} created ${name}.`;
+    if (action === 'COMPANY_ADDRESS_CREATED') return `${actor} added a shipping address for ${name}.`;
+    if (action === 'COMPANY_ADDRESS_UPDATED') {
+      return event.after_json?.is_default
+        ? `${actor} updated the default shipping address for ${name}.`
+        : `${actor} updated a shipping address for ${name}.`;
+    }
+    if (action.includes('CREAT')) return event.after_json?.has_shipping_address
+      ? `${actor} created company ${name} with a primary shipping address.`
+      : `${actor} created ${name}.`;
     return `${actor} updated ${name}’s company details.`;
   }
   if (entityType === 'profile' || entityType === 'user') {

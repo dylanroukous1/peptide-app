@@ -136,7 +136,7 @@ export default function AdminAuditScreen() {
         orderIds.length
           ? supabase
               .from('orders')
-              .select('id, order_number, total_price, peptide:peptides(name), items:order_items(requested_quantity, peptide:peptides(name))')
+              .select('id, order_number, total_price, final_total, peptide:peptides(name), items:order_items(requested_quantity, peptide:peptides(name))')
               .in('id', orderIds)
           : Promise.resolve({ data: [], error: null }),
         peptideIds.length
@@ -172,7 +172,7 @@ export default function AdminAuditScreen() {
             (sum, item) => sum + Number(item.requested_quantity || 0),
             0
           ),
-          totalPrice: Number(order.total_price || 0),
+          totalPrice: Number(order.final_total ?? order.total_price ?? 0),
         };
       }
       for (const peptide of peptideResult.data || []) nextReferences.peptides[peptide.id] = peptide.name;

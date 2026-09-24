@@ -6,9 +6,11 @@ type StatusColorKey =
   | 'underReview'
   | 'approved'
   | 'inProduction'
+  | 'shipped'
   | 'fulfilled'
   | 'cancelled'
   | 'expired'
+  | 'voided'
   | 'pending'
   | 'active'
   | 'suspended';
@@ -39,6 +41,11 @@ const statusColorMap: Record<StatusColorKey, { bg: string; color: string; border
     color: '#6D28D9',
     border: '#DDD6FE',
   },
+  shipped: {
+    bg: '#EFF6FF',
+    color: '#1D4ED8',
+    border: '#93C5FD',
+  },
   fulfilled: {
     bg: '#F0FDF4',
     color: '#15803D',
@@ -53,6 +60,11 @@ const statusColorMap: Record<StatusColorKey, { bg: string; color: string; border
     bg: '#FFFBEB',
     color: '#B45309',
     border: '#FDE68A',
+  },
+  voided: {
+    bg: '#FEF2F2',
+    color: '#991B1B',
+    border: '#FCA5A5',
   },
   pending: {
     bg: '#FFF7ED',

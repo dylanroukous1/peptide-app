@@ -6,7 +6,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
+  Collapse,
+  FormControlLabel,
   Stack,
   Typography,
 } from '@mui/material';
@@ -45,7 +48,34 @@ type CompanyRow = {
   notes: string | null;
   is_active: boolean;
   created_at?: string;
+  addresses: AddressRow[];
 };
+
+type AddressRow = {
+  id: string;
+  label: string | null;
+  recipient_name: string | null;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  is_default: boolean;
+};
+type AddressDraft = {
+  label: string;
+  recipient_name: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  is_default: boolean;
+};
+const emptyAddress = (): AddressDraft => ({ label: 'Primary', recipient_name: '', line1: '', line2: '', city: '', state: '', postal_code: '', country: 'USA', is_default: true });
+const addressDraft = (address: AddressRow): AddressDraft => ({ label: address.label || '', recipient_name: address.recipient_name || '', line1: address.line1, line2: address.line2 || '', city: address.city, state: address.state, postal_code: address.postal_code, country: address.country, is_default: address.is_default });
 
 function formatDate(value?: string | null) {
   if (!value) return '—';
@@ -64,6 +94,12 @@ export default function AdminCompaniesScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [savingCompanyId, setSavingCompanyId] = useState<string | null>(null);
   const [togglingCompanyId, setTogglingCompanyId] = useState<string | null>(null);
+  const [savingAddressId, setSavingAddressId] = useState<string | null>(null);
+  const [showCreateAddress, setShowCreateAddress] = useState(false);
+  const [createAddress, setCreateAddress] = useState<AddressDraft>(emptyAddress);
+  const [newAddressCompanyId, setNewAddressCompanyId] = useState<string | null>(null);
+  const [newAddressDrafts, setNewAddressDrafts] = useState<Record<string, AddressDraft>>({});
+  const [addressDrafts, setAddressDrafts] = useState<Record<string, AddressDraft>>({});
   const [search, setSearch] = useSessionStorageState('admin-company-search', '');
   const { toast, showToast, closeToast } = useAppToast();
 
@@ -90,19 +126,28 @@ export default function AdminCompaniesScreen() {
 
   const hasUnsavedChanges = useMemo(() => {
     if (Object.values(newCompany).some((value) => value.trim())) return true;
+    if (showCreateAddress && Object.entries(createAddress).some(([key, value]) =>
+      key === 'is_default' ? value !== true : String(value).trim() !== String(emptyAddress()[key as keyof AddressDraft]).trim()
+    )) return true;
+    if (newAddressCompanyId) return true;
 
     return companies.some((company) => {
       const draft = drafts[company.id];
       if (!draft) return false;
-      return (
+      const companyChanged = (
         draft.name !== company.name ||
         draft.billingContactName !== (company.billing_contact_name || '') ||
         draft.billingEmail !== (company.billing_email || '') ||
         draft.phone !== (company.phone || '') ||
         draft.notes !== (company.notes || '')
       );
+      const addressChanged = company.addresses.some((address) => {
+        const next = addressDrafts[address.id];
+        return next ? JSON.stringify(next) !== JSON.stringify(addressDraft(address)) : false;
+      });
+      return companyChanged || addressChanged;
     });
-  }, [companies, drafts, newCompany]);
+  }, [addressDrafts, companies, createAddress, drafts, newAddressCompanyId, newCompany, showCreateAddress]);
 
   useUnsavedChanges(hasUnsavedChanges);
 
@@ -112,7 +157,7 @@ export default function AdminCompaniesScreen() {
 
     const { data, error } = await supabase
       .from('companies')
-      .select('id, name, billing_contact_name, billing_email, phone, notes, is_active, created_at')
+      .select('id, name, billing_contact_name, billing_email, phone, notes, is_active, created_at, addresses:company_addresses(id, label, recipient_name, line1, line2, city, state, postal_code, country, is_default)')
       .order('name', { ascending: true });
 
     if (error) {
@@ -121,7 +166,7 @@ export default function AdminCompaniesScreen() {
       return;
     }
 
-    const rows = data || [];
+    const rows = (data || []) as CompanyRow[];
     setCompanies(rows);
 
     const initialDrafts: Record<
@@ -146,6 +191,7 @@ export default function AdminCompaniesScreen() {
     });
 
     setDrafts(initialDrafts);
+    setAddressDrafts(Object.fromEntries(rows.flatMap((row) => row.addresses.map((address) => [address.id, addressDraft(address)]))));
     setLoading(false);
   };
 
@@ -208,21 +254,22 @@ export default function AdminCompaniesScreen() {
       return;
     }
 
+    if (showCreateAddress && [createAddress.line1, createAddress.city, createAddress.state, createAddress.postal_code, createAddress.country].some((value) => !value.trim())) {
+      setErrorMessage('Complete all required primary shipping address fields.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorMessage('');
 
-    const { data, error } = await supabase
-      .from('companies')
-      .insert({
-        name: newCompany.name.trim(),
-        billing_contact_name: newCompany.billingContactName.trim() || null,
-        billing_email: newCompany.billingEmail.trim().toLowerCase() || null,
-        phone: newCompany.phone.trim() || null,
-        notes: newCompany.notes.trim() || null,
-        is_active: true,
-      })
-      .select('id, name, billing_contact_name, billing_email, phone, notes, is_active, created_at')
-      .single();
+    const { data: companyId, error } = await supabase.rpc('admin_create_company', {
+      p_name: newCompany.name.trim(),
+      p_billing_contact_name: newCompany.billingContactName.trim() || null,
+      p_billing_email: newCompany.billingEmail.trim().toLowerCase() || null,
+      p_phone: newCompany.phone.trim() || null,
+      p_notes: newCompany.notes.trim() || null,
+      p_address: showCreateAddress ? createAddress : null,
+    });
 
     if (error) {
       showToast(error.message, 'error');
@@ -230,17 +277,20 @@ export default function AdminCompaniesScreen() {
       return;
     }
 
-    setCompanies((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)));
-    setDrafts((current) => ({
-      ...current,
-      [data.id]: {
-        name: data.name,
-        billingContactName: data.billing_contact_name || '',
-        billingEmail: data.billing_email || '',
-        phone: data.phone || '',
-        notes: data.notes || '',
-      },
-    }));
+    const { data: created, error: reloadError } = await supabase
+      .from('companies')
+      .select('id, name, billing_contact_name, billing_email, phone, notes, is_active, created_at, addresses:company_addresses(id, label, recipient_name, line1, line2, city, state, postal_code, country, is_default)')
+      .eq('id', companyId)
+      .single();
+    if (reloadError) {
+      showToast('Company was created, but its details could not be refreshed.', 'warning');
+      setSubmitting(false);
+      return;
+    }
+    const createdCompany = created as CompanyRow;
+    setCompanies((current) => [...current, createdCompany].sort((a, b) => a.name.localeCompare(b.name)));
+    setDrafts((current) => ({ ...current, [createdCompany.id]: { name: createdCompany.name, billingContactName: createdCompany.billing_contact_name || '', billingEmail: createdCompany.billing_email || '', phone: createdCompany.phone || '', notes: createdCompany.notes || '' } }));
+    setAddressDrafts((current) => ({ ...current, ...Object.fromEntries(createdCompany.addresses.map((address) => [address.id, addressDraft(address)])) }));
     setNewCompany({
       name: '',
       billingContactName: '',
@@ -248,9 +298,48 @@ export default function AdminCompaniesScreen() {
       phone: '',
       notes: '',
     });
+    setShowCreateAddress(false);
+    setCreateAddress(emptyAddress());
 
     showToast(`Company ${newCompany.name.trim()} created successfully.`);
     setSubmitting(false);
+  };
+
+  const saveCompanyAddress = async (company: CompanyRow, addressId: string | null) => {
+    if (savingAddressId) return;
+    const draft = addressId ? addressDrafts[addressId] : newAddressDrafts[company.id];
+    if (!draft || [draft.line1, draft.city, draft.state, draft.postal_code, draft.country].some((value) => !value.trim())) {
+      showToast('Complete all required shipping address fields.', 'error');
+      return;
+    }
+    setSavingAddressId(addressId || `new-${company.id}`);
+    const { data, error } = await supabase.rpc('admin_upsert_company_address', {
+      p_company_id: company.id,
+      p_address_id: addressId,
+      p_address: draft,
+    });
+    setSavingAddressId(null);
+    if (error) {
+      showToast(error.message, 'error');
+      return;
+    }
+    const saved = data as AddressRow;
+    setCompanies((current) => current.map((row) => row.id !== company.id ? row : {
+      ...row,
+      addresses: addressId
+        ? row.addresses.map((address) => address.id === saved.id ? saved : { ...address, is_default: saved.is_default ? false : address.is_default })
+        : [...row.addresses.map((address) => ({ ...address, is_default: saved.is_default ? false : address.is_default })), saved],
+    }));
+    setAddressDrafts((current) => ({
+      ...current,
+      ...(saved.is_default ? Object.fromEntries(company.addresses.map((address) => [address.id, { ...(current[address.id] || addressDraft(address)), is_default: false }])) : {}),
+      [saved.id]: addressDraft(saved),
+    }));
+    if (!addressId) {
+      setNewAddressCompanyId(null);
+      setNewAddressDrafts((current) => ({ ...current, [company.id]: emptyAddress() }));
+    }
+    showToast(`${addressId ? 'Shipping address updated' : 'Shipping address added'} for ${company.name}.`);
   };
 
   const handleSaveCompany = async (companyId: string) => {
@@ -294,7 +383,7 @@ export default function AdminCompaniesScreen() {
     showToast(`Company ${draft.name.trim()} saved successfully.`);
     setCompanies((current) =>
       current
-        .map((company) => (company.id === companyId ? data : company))
+        .map((company) => (company.id === companyId ? { ...data, addresses: company.addresses } : company))
         .sort((a, b) => a.name.localeCompare(b.name))
     );
     setDrafts((current) => ({
@@ -342,7 +431,7 @@ export default function AdminCompaniesScreen() {
       `Company ${row.name} ${row.is_active ? 'deactivated' : 'activated'} successfully.`
     );
     setCompanies((current) =>
-      current.map((company) => (company.id === row.id ? data : company))
+      current.map((company) => (company.id === row.id ? { ...data, addresses: company.addresses } : company))
     );
     setTogglingCompanyId(null);
   };
@@ -473,6 +562,24 @@ export default function AdminCompaniesScreen() {
                 minRows={4}
                 fullWidth
               />
+
+              <Button type="button" variant="outlined" onClick={() => setShowCreateAddress((open) => !open)} aria-expanded={showCreateAddress}>
+                {showCreateAddress ? 'Remove shipping address' : 'Add shipping address'}
+              </Button>
+              <Collapse in={showCreateAddress}>
+                <Box sx={{ display: 'grid', gap: 1.5, p: 2, border: '1px solid #E2E8F0', borderRadius: 2, backgroundColor: '#F8FAFC' }}>
+                  <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 800 }}>Primary Shipping Address</Typography>
+                  <StyledTextField label="Address label" value={createAddress.label} onChange={(event) => setCreateAddress((current) => ({ ...current, label: event.target.value }))} />
+                  <StyledTextField label="Recipient name" value={createAddress.recipient_name} onChange={(event) => setCreateAddress((current) => ({ ...current, recipient_name: event.target.value }))} />
+                  <StyledTextField label="Address line 1" required value={createAddress.line1} onChange={(event) => setCreateAddress((current) => ({ ...current, line1: event.target.value }))} />
+                  <StyledTextField label="Address line 2" value={createAddress.line2} onChange={(event) => setCreateAddress((current) => ({ ...current, line2: event.target.value }))} />
+                  <StyledTextField label="City" required value={createAddress.city} onChange={(event) => setCreateAddress((current) => ({ ...current, city: event.target.value }))} />
+                  <StyledTextField label="State" required value={createAddress.state} onChange={(event) => setCreateAddress((current) => ({ ...current, state: event.target.value }))} />
+                  <StyledTextField label="Postal code" required value={createAddress.postal_code} onChange={(event) => setCreateAddress((current) => ({ ...current, postal_code: event.target.value }))} />
+                  <StyledTextField label="Country" required value={createAddress.country} onChange={(event) => setCreateAddress((current) => ({ ...current, country: event.target.value }))} />
+                  <FormControlLabel control={<Checkbox checked={createAddress.is_default} onChange={(event) => setCreateAddress((current) => ({ ...current, is_default: event.target.checked }))} />} label="Set as default shipping address" />
+                </Box>
+              </Collapse>
 
               <Button
                 type="submit"
@@ -671,6 +778,55 @@ export default function AdminCompaniesScreen() {
                         minRows={3}
                         fullWidth
                       />
+                    </Box>
+
+                    <Box component="details" sx={{ mt: 2 }}>
+                      <Typography component="summary" variant="body2" sx={{ fontWeight: 800, cursor: 'pointer' }}>
+                        Shipping addresses ({row.addresses.length})
+                      </Typography>
+                      <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                        {row.addresses.length === 0 ? <Typography variant="body2" color="text.secondary">No shipping addresses saved.</Typography> : null}
+                        {row.addresses.map((address) => {
+                          const draft = addressDrafts[address.id] || addressDraft(address);
+                          const update = (field: keyof AddressDraft, value: string | boolean) => setAddressDrafts((current) => ({ ...current, [address.id]: { ...(current[address.id] || addressDraft(address)), [field]: value } }));
+                          return (
+                            <Box key={address.id} sx={{ display: 'grid', gap: 1.25, p: 1.5, border: '1px solid #E2E8F0', borderRadius: 2 }}>
+                              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}><Typography component="h4" variant="subtitle2" sx={{ fontWeight: 800 }}>{draft.label || 'Shipping address'}</Typography>{address.is_default ? <StatusChip status="DEFAULT" /> : null}</Stack>
+                              <ActionsGrid sx={{ mt: 0 }}>
+                                <StyledTextField label="Address label" value={draft.label} onChange={(event) => update('label', event.target.value)} />
+                                <StyledTextField label="Recipient name" value={draft.recipient_name} onChange={(event) => update('recipient_name', event.target.value)} />
+                                <StyledTextField label="Address line 1" required value={draft.line1} onChange={(event) => update('line1', event.target.value)} />
+                                <StyledTextField label="Address line 2" value={draft.line2} onChange={(event) => update('line2', event.target.value)} />
+                                <StyledTextField label="City" required value={draft.city} onChange={(event) => update('city', event.target.value)} />
+                                <StyledTextField label="State" required value={draft.state} onChange={(event) => update('state', event.target.value)} />
+                                <StyledTextField label="Postal code" required value={draft.postal_code} onChange={(event) => update('postal_code', event.target.value)} />
+                                <StyledTextField label="Country" required value={draft.country} onChange={(event) => update('country', event.target.value)} />
+                              </ActionsGrid>
+                              <FormControlLabel control={<Checkbox checked={draft.is_default} disabled={address.is_default} onChange={(event) => update('is_default', event.target.checked)} />} label={address.is_default ? 'Default shipping address' : 'Set as default shipping address'} />
+                              <Button variant="outlined" onClick={() => void saveCompanyAddress(row, address.id)} disabled={savingAddressId === address.id}>{savingAddressId === address.id ? <CircularProgress size={18} /> : 'Save address'}</Button>
+                            </Box>
+                          );
+                        })}
+                        {newAddressCompanyId === row.id ? (() => {
+                          const draft = newAddressDrafts[row.id] || emptyAddress();
+                          const update = (field: keyof AddressDraft, value: string | boolean) => setNewAddressDrafts((current) => ({ ...current, [row.id]: { ...(current[row.id] || emptyAddress()), [field]: value } }));
+                          return <Box sx={{ display: 'grid', gap: 1.25, p: 1.5, border: '1px solid #CBD5E1', borderRadius: 2, backgroundColor: '#F8FAFC' }}>
+                            <Typography component="h4" variant="subtitle2" sx={{ fontWeight: 800 }}>Add shipping address</Typography>
+                            <ActionsGrid sx={{ mt: 0 }}>
+                              <StyledTextField label="Address label" value={draft.label} onChange={(event) => update('label', event.target.value)} />
+                              <StyledTextField label="Recipient name" value={draft.recipient_name} onChange={(event) => update('recipient_name', event.target.value)} />
+                              <StyledTextField label="Address line 1" required value={draft.line1} onChange={(event) => update('line1', event.target.value)} />
+                              <StyledTextField label="Address line 2" value={draft.line2} onChange={(event) => update('line2', event.target.value)} />
+                              <StyledTextField label="City" required value={draft.city} onChange={(event) => update('city', event.target.value)} />
+                              <StyledTextField label="State" required value={draft.state} onChange={(event) => update('state', event.target.value)} />
+                              <StyledTextField label="Postal code" required value={draft.postal_code} onChange={(event) => update('postal_code', event.target.value)} />
+                              <StyledTextField label="Country" required value={draft.country} onChange={(event) => update('country', event.target.value)} />
+                            </ActionsGrid>
+                            <FormControlLabel control={<Checkbox checked={draft.is_default} onChange={(event) => update('is_default', event.target.checked)} />} label="Set as default shipping address" />
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}><Button variant="contained" onClick={() => void saveCompanyAddress(row, null)} disabled={savingAddressId === `new-${row.id}`}>{savingAddressId === `new-${row.id}` ? <CircularProgress size={18} color="inherit" /> : 'Add address'}</Button><Button onClick={() => setNewAddressCompanyId(null)}>Cancel</Button></Stack>
+                          </Box>;
+                        })() : <Button variant="outlined" onClick={() => { setNewAddressCompanyId(row.id); setNewAddressDrafts((current) => ({ ...current, [row.id]: { ...emptyAddress(), is_default: row.addresses.length === 0 } })); }}>Add another address</Button>}
+                      </Stack>
                     </Box>
 
                     <ButtonRow>
