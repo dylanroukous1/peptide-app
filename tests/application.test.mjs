@@ -278,7 +278,8 @@ test('responsive order builder supports search, addresses, review, and duplicate
   assert.match(orderForm, /customer-order-product-search/);
   assert.match(orderForm, /current\.some\(\(item\) => item\.peptideId === peptideId\)/);
   assert.match(orderForm, /\.from\('company_addresses'\)[\s\S]*\.insert/);
-  assert.match(orderForm, /positive whole-number quantity/);
+  assert.match(orderForm, /Enter a positive whole number/);
+  assert.doesNotMatch(orderForm, /Pricing is verified by the database when you submit/);
   assert.match(orderForm, /disabled=\{!canSubmit\}/);
   assert.match(orderForm, /<AppSnackbar \{\.\.\.toast\} onClose=\{closeToast\}/);
   assert.match(styles, /breakpoints\.down\('lg'\)[\s\S]*gridTemplateColumns: '1fr'/);

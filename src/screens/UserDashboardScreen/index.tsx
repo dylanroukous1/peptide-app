@@ -279,8 +279,6 @@ export default function UserDashboardScreen() {
       <Stack spacing={3} sx={{ pb: items.length > 0 ? { xs: 11, sm: 0 } : 0 }}>
         {errorMessage ? <Alert severity="error" action={<Button color="inherit" onClick={() => void loadOrderingData()}>Retry</Button>}>{errorMessage}</Alert> : null}
         {!profile.company_id ? <Alert severity="warning">An administrator must assign your account to a company before you can order.</Alert> : null}
-        <Alert severity="info">Order any positive whole-number quantity for each product. Pricing is verified by the database when you submit.</Alert>
-
         <StatsGrid>
           <StatCard><Typography variant="body2" color="text.secondary">Products Added</Typography><Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>{items.length}</Typography></StatCard>
           <StatCard><Typography variant="body2" color="text.secondary">Total Vials</Typography><Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>{totalQuantity.toLocaleString('en-US')}</Typography></StatCard>
