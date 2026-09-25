@@ -14,6 +14,7 @@ const shippedTransitionsMigrationPath = 'supabase/migrations/20260924124100_enab
 const deleteCompanyMigrationPath = 'supabase/migrations/20260924125000_add_admin_company_deletion.sql';
 const deleteUserMigrationPath = 'supabase/migrations/20260924126000_add_admin_user_deletion.sql';
 const deletePeptideMigrationPath = 'supabase/migrations/20260924127000_add_admin_peptide_deletion.sql';
+const removeOrderMinimumsMigrationPath = 'supabase/migrations/20260925090000_remove_order_minimums.sql';
 
 test('removed wishlist and batch management routes are not addressable', () => {
   assert.equal(existsSync(new URL('../app/wishlist/page.tsx', import.meta.url)), false);
@@ -174,18 +175,19 @@ test('multi-item submission snapshots active database prices and inserts atomica
   assert.match(orderForm, /showToast\([\s\S]*Order \$\{receipt\.order_number\} submitted/);
 });
 
-test('multi-order RPC enforces exact MOQ boundaries and rejects invalid quantities', () => {
-  const sql = read(multiOrderingMigrationPath);
+test('current multi-order RPC accepts any positive whole-number quantity', () => {
+  const sql = read(removeOrderMinimumsMigrationPath);
   const orderForm = read('src/screens/UserDashboardScreen/index.tsx');
 
-  assert.match(sql, /v_quantity_numeric < 250/);
-  assert.doesNotMatch(sql, /v_quantity_numeric <= 250/);
-  assert.match(sql, /v_total_quantity < 2000/);
-  assert.doesNotMatch(sql, /v_total_quantity <= 2000/);
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /create or replace function public\.submit_multi_product_order/);
   assert.match(sql, /v_quantity_numeric <> trunc\(v_quantity_numeric\)/);
-  assert.match(orderForm, /const SKU_MINIMUM = 250/);
-  assert.match(orderForm, /const ORDER_MINIMUM = 2000/);
-  assert.match(orderForm, /Number\.isInteger\(quantity\)/);
+  assert.match(sql, /v_quantity_numeric <= 0/);
+  assert.doesNotMatch(sql, /v_quantity_numeric < 250|v_total_quantity < 2000|2,000 total vials/);
+  assert.doesNotMatch(orderForm, /SKU_MINIMUM|ORDER_MINIMUM|250 vials|2,000/);
+  assert.match(orderForm, /Number\.isInteger\(quantity\) && quantity > 0/);
+  assert.match(orderForm, /quantity: '1'/);
+  assert.match(sql, /revoke all on function public\.submit_product_order\(uuid, uuid, integer, text\) from authenticated/);
 });
 
 test('multi-order RPC rejects duplicates, malformed JSON, inactive products, and excess fields', () => {
@@ -224,7 +226,7 @@ test('client cannot alter prices or totals and a bad line rolls back the entire 
   assert.match(sql, /security definer[\s\S]*set search_path = public, pg_temp/);
 });
 
-test('legacy ordering RPC cannot bypass multi-product minimums', () => {
+test('legacy ordering RPC remains disabled in favor of the authoritative multi-product flow', () => {
   const sql = read(multiOrderingMigrationPath);
   const application = [
     read('src/screens/UserDashboardScreen/index.tsx'),
@@ -268,14 +270,14 @@ test('admin approval updates every item while preserving legacy header values', 
   assert.match(sql, /ORDER_STATUS_UPDATED/);
 });
 
-test('responsive order builder supports search, addresses, review, progress, and duplicate prevention', () => {
+test('responsive order builder supports search, addresses, review, and duplicate prevention', () => {
   const orderForm = read('src/screens/UserDashboardScreen/index.tsx');
   const styles = read('src/screens/UserDashboardScreen/styles.ts');
 
   assert.match(orderForm, /customer-order-product-search/);
   assert.match(orderForm, /current\.some\(\(item\) => item\.peptideId === peptideId\)/);
   assert.match(orderForm, /\.from\('company_addresses'\)[\s\S]*\.insert/);
-  assert.match(orderForm, /Order minimum progress/);
+  assert.match(orderForm, /positive whole-number quantity/);
   assert.match(orderForm, /disabled=\{!canSubmit\}/);
   assert.match(orderForm, /<AppSnackbar \{\.\.\.toast\} onClose=\{closeToast\}/);
   assert.match(styles, /breakpoints\.down\('lg'\)[\s\S]*gridTemplateColumns: '1fr'/);
@@ -312,7 +314,7 @@ test('mutation feedback uses shared toasts and order success cannot show an empt
     'src/screens/AccessRequestScreen/index.tsx',
   ].map(read);
 
-  assert.match(orderForm, /items\.length > 0 && !orderMinimumMet/);
+  assert.match(orderForm, /!allQuantitiesValid && items\.length > 0/);
   assert.doesNotMatch(orderForm, /severity="success" role="status"/);
   assert.match(orderForm, /setFormError\(''\)[\s\S]*setItems\(\[\]\)[\s\S]*showToast/);
   assert.match(snackbar, /anchorOrigin=\{\{ vertical: 'top', horizontal: 'center' \}\}/);

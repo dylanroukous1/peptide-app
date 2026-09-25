@@ -10,7 +10,6 @@ import {
   Button,
   CircularProgress,
   IconButton,
-  LinearProgress,
   MenuItem,
   Stack,
   Typography,
@@ -61,9 +60,6 @@ type OrderReceipt = {
 const emptyAddress = {
   label: '', recipient_name: '', line1: '', line2: '', city: '', state: '', postal_code: '', country: 'USA',
 };
-const SKU_MINIMUM = 250;
-const ORDER_MINIMUM = 2000;
-
 function money(value: number | string | null | undefined) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2,
@@ -163,7 +159,7 @@ export default function UserDashboardScreen() {
   const orderItems = useMemo(() => items.map((item) => {
     const peptide = peptides.find((row) => row.id === item.peptideId);
     const quantity = Number(item.quantity);
-    const validQuantity = Number.isInteger(quantity) && quantity >= SKU_MINIMUM;
+    const validQuantity = Number.isInteger(quantity) && quantity > 0;
     return {
       ...item,
       peptide,
@@ -174,14 +170,13 @@ export default function UserDashboardScreen() {
   }), [items, peptides]);
   const totalQuantity = orderItems.reduce((sum, item) => sum + (Number.isInteger(item.quantity) && item.quantity > 0 ? item.quantity : 0), 0);
   const totalPrice = orderItems.reduce((sum, item) => sum + item.lineTotal, 0);
-  const allSkuMinimumsMet = orderItems.length > 0 && orderItems.every((item) => item.validQuantity);
-  const orderMinimumMet = totalQuantity >= ORDER_MINIMUM;
-  const canSubmit = Boolean(profile?.company_id && addressId && allSkuMinimumsMet && orderMinimumMet && !submitting);
+  const allQuantitiesValid = orderItems.length > 0 && orderItems.every((item) => item.validQuantity);
+  const canSubmit = Boolean(profile?.company_id && addressId && allQuantitiesValid && !submitting);
 
   const addProduct = (peptideId: string) => {
     setItems((current) => current.some((item) => item.peptideId === peptideId)
       ? current
-      : [...current, { peptideId, quantity: String(SKU_MINIMUM) }]);
+      : [...current, { peptideId, quantity: '1' }]);
   };
   const updateQuantity = (peptideId: string, quantity: string) => {
     setItems((current) => current.map((item) => item.peptideId === peptideId ? { ...item, quantity } : item));
@@ -236,7 +231,7 @@ export default function UserDashboardScreen() {
     if (submittingRef.current) return;
     setFormError('');
     if (!canSubmit) {
-      setFormError('Every product requires at least 250 vials and the complete order requires at least 2,000 vials.');
+      setFormError('Add at least one product and enter a positive whole-number quantity for every item.');
       return;
     }
     submittingRef.current = true;
@@ -284,9 +279,7 @@ export default function UserDashboardScreen() {
       <Stack spacing={3} sx={{ pb: items.length > 0 ? { xs: 11, sm: 0 } : 0 }}>
         {errorMessage ? <Alert severity="error" action={<Button color="inherit" onClick={() => void loadOrderingData()}>Retry</Button>}>{errorMessage}</Alert> : null}
         {!profile.company_id ? <Alert severity="warning">An administrator must assign your account to a company before you can order.</Alert> : null}
-        <Alert severity="info">
-          Minimum <strong>250 vials per product</strong> and <strong>2,000 total vials per order</strong>. Both rules are verified again by the database.
-        </Alert>
+        <Alert severity="info">Order any positive whole-number quantity for each product. Pricing is verified by the database when you submit.</Alert>
 
         <StatsGrid>
           <StatCard><Typography variant="body2" color="text.secondary">Products Added</Typography><Typography component="p" variant="h4" sx={{ mt: 1, fontWeight: 800 }}>{items.length}</Typography></StatCard>
@@ -356,9 +349,9 @@ export default function UserDashboardScreen() {
                           type="number"
                           value={item.quantity}
                           error={item.quantity > 0 && !item.validQuantity}
-                          helperText={!item.validQuantity ? 'Minimum 250' : ' '}
+                          helperText={!item.validQuantity ? 'Enter a positive whole number' : ' '}
                           onChange={(event) => updateQuantity(item.peptideId, event.target.value)}
-                          slotProps={{ htmlInput: { min: SKU_MINIMUM, step: 1, inputMode: 'numeric' } }}
+                          slotProps={{ htmlInput: { min: 1, step: 1, inputMode: 'numeric' } }}
                         />
                         <IconButton type="button" aria-label={`Remove ${item.peptide?.name || 'product'}`} onClick={() => removeProduct(item.peptideId)}><DeleteOutlinedIcon /></IconButton>
                       </OrderItemCard>
@@ -367,9 +360,7 @@ export default function UserDashboardScreen() {
                 )}
 
                 <ReviewBox>
-                  <Stack direction="row" sx={{ justifyContent: 'space-between' }}><Typography variant="body2" sx={{ fontWeight: 700 }}>2,000-vial progress</Typography><Typography variant="body2">{Math.min(totalQuantity, ORDER_MINIMUM).toLocaleString('en-US')} / {ORDER_MINIMUM.toLocaleString('en-US')}</Typography></Stack>
-                  <LinearProgress variant="determinate" value={Math.min((totalQuantity / ORDER_MINIMUM) * 100, 100)} aria-label="Order minimum progress" sx={{ mt: 1, height: 8, borderRadius: 4 }} />
-                  <Stack spacing={0.75} sx={{ mt: 2 }}>
+                  <Stack spacing={0.75}>
                     <Stack direction="row" sx={{ justifyContent: 'space-between' }}><Typography variant="body2" color="text.secondary">Products</Typography><Typography variant="body2" sx={{ fontWeight: 700 }}>{orderItems.length}</Typography></Stack>
                     <Stack direction="row" sx={{ justifyContent: 'space-between' }}><Typography variant="body2" color="text.secondary">Total vials</Typography><Typography variant="body2" sx={{ fontWeight: 700 }}>{totalQuantity.toLocaleString('en-US')}</Typography></Stack>
                     <Stack direction="row" sx={{ justifyContent: 'space-between' }}><Typography variant="body1" sx={{ fontWeight: 800 }}>Estimated total</Typography><Typography variant="body1" sx={{ fontWeight: 800 }}>{money(totalPrice)}</Typography></Stack>
@@ -392,8 +383,7 @@ export default function UserDashboardScreen() {
                   </AddressFormGrid>
                 ) : null}
                 <StyledTextField label="Order notes (optional)" value={notes} onChange={(event) => setNotes(event.target.value)} multiline minRows={3} />
-                {!allSkuMinimumsMet && items.length > 0 ? <Alert severity="warning">Every product must contain at least 250 vials.</Alert> : null}
-                {items.length > 0 && !orderMinimumMet ? <Alert severity="warning">Add {(ORDER_MINIMUM - totalQuantity).toLocaleString('en-US')} more vials to reach the order minimum.</Alert> : null}
+                {!allQuantitiesValid && items.length > 0 ? <Alert severity="warning">Every product needs a positive whole-number quantity.</Alert> : null}
                 {formError ? <Alert severity="error" role="alert">{formError}</Alert> : null}
                 <Button type="submit" variant="contained" size="large" disabled={!canSubmit} sx={{ minHeight: 48 }}>
                   {submitting ? <><CircularProgress size={19} color="inherit" sx={{ mr: 1 }} />Submitting order…</> : 'Submit order'}
