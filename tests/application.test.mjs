@@ -425,7 +425,9 @@ test('login uses deterministic fallback markup to prevent auth hydration mismatc
   const sessionProvider = read('src/hooks/useSessionUser.tsx');
 
   assert.doesNotMatch(login, /useSyncExternalStore|subscribeToClient|if \(!mounted\)/);
-  assert.match(login, /if \(sessionLoading\)[\s\S]*login-route-loading/);
+  assert.doesNotMatch(login, /login-route-loading|login-route-spinner/);
+  assert.match(login, /const showBootstrap = sessionLoading \|\| workspaceError/);
+  assert.match(login, /if \(showBootstrap\)[\s\S]*<WorkspaceLoadingSurface/);
   assert.match(sessionProvider, /const \[loading, setLoading\] = useState\(true\)/);
   assert.match(login, /Preparing your workspace…/);
   assert.match(loginPage, /<LoginScreen \/>/);

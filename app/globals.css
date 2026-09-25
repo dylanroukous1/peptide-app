@@ -36,31 +36,6 @@ body {
   overflow-x: hidden;
 }
 
-.login-route-loading {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: #586879;
-  background: #f1f5f9;
-}
-
-.login-route-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid #cbd5e1;
-  border-top-color: #0f3d56;
-  border-radius: 50%;
-  animation: login-route-spin 0.8s linear infinite;
-}
-
-@keyframes login-route-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 a,
 button,
 input,

@@ -211,17 +211,11 @@ export default function LoginScreen() {
     setFlowState('idle');
   };
 
-  // SessionProvider starts in this state on both the server and the client's
-  // first render, so the hydration snapshot remains identical.
-  if (sessionLoading) {
-    return <main className="login-route-loading" role="status" aria-live="polite"><span className="login-route-spinner" aria-hidden="true" /><span>Preparing your workspace…</span></main>;
-  }
-
   const missingProfile = !sessionLoading && Boolean(authUser) && !profile && flowState === 'idle';
   const workspaceError = (flowState === 'error' && errorStage === 'workspace') || missingProfile;
   const workspaceErrorMessage = message || 'We could not load your account profile. Try again or return to sign in.';
   const restoringExistingSession = Boolean(profile) && flowState === 'idle';
-  const showBootstrap = workspaceError || restoringExistingSession || ['authenticating', 'loading-account', 'preparing-workspace', 'ready'].includes(flowState);
+  const showBootstrap = sessionLoading || workspaceError || restoringExistingSession || ['authenticating', 'loading-account', 'preparing-workspace', 'ready'].includes(flowState);
   if (showBootstrap) {
     return <WorkspaceLoadingSurface error={workspaceError ? workspaceErrorMessage : undefined} onRetry={() => void retryWorkspace()} onReturnToLogin={() => void returnToLogin()} />;
   }
