@@ -353,6 +353,26 @@ test('create-user layout uses three, two, and one responsive columns', () => {
   assert.match(styles, /breakpoints\.down\('sm'\)[\s\S]*gridTemplateColumns: '1fr'/);
 });
 
+test('admin users use compact records and shared toast validation feedback', () => {
+  const screen = read('src/screens/AdminUsersScreen/index.tsx');
+  const styles = read('src/screens/AdminUsersScreen/styles.ts');
+  const createHandler = screen.match(/const handleCreateUser[\s\S]*?const prefillCreateFromRequest/)?.[0] || '';
+
+  assert.match(createHandler, /showToast\('Email, first name, and last name are required\.', 'error'\)/);
+  assert.match(createHandler, /showToast\('Enter a valid email address\.', 'error'\)/);
+  assert.match(createHandler, /showToast\('Passwords must contain at least 12 characters\.', 'error'\)/);
+  assert.doesNotMatch(createHandler, /setErrorMessage\(/);
+  assert.doesNotMatch(screen, /Profile ID|Request ID/);
+  assert.match(screen, /className="user-edit-actions"/);
+  assert.match(screen, /Save changes/);
+  assert.match(screen, /<CreateFooterGrid>[\s\S]*<PasswordFieldWrap>[\s\S]*<FormActions>/);
+  assert.doesNotMatch(screen, /<MetaGrid/);
+  assert.match(styles, /gridTemplateColumns: 'minmax\(280px, 560px\) 190px'/);
+  assert.match(styles, /gridTemplateColumns: 'minmax\(280px, 420px\) auto'/);
+  assert.match(styles, /gap: theme\.spacing\(1\.25\)/);
+  assert.match(styles, /padding: theme\.spacing\(1\.75\)/);
+});
+
 test('audit activity is human-readable with safe actor and status fallbacks', () => {
   const formatter = read('src/lib/audit/formatAuditEvent.ts');
   const screen = read('src/screens/AdminAuditScreen/index.tsx');

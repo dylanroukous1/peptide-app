@@ -3,7 +3,7 @@ import { Box, Card, TextField, styled } from '@mui/material';
 export const StatsGrid = styled(Box)(({ theme }) => ({
   display: 'grid',
   gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: theme.spacing(2),
+  gap: theme.spacing(1.5),
   [theme.breakpoints.down('lg')]: {
     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   },
@@ -13,15 +13,15 @@ export const StatsGrid = styled(Box)(({ theme }) => ({
 }));
 
 export const StatCard = styled(Card)(({ theme }) => ({
-  borderRadius: 14,
-  padding: theme.spacing(2.5),
+  borderRadius: 12,
+  padding: theme.spacing(2),
   border: '1px solid #E2E8F0',
   boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
 }));
 
 export const SectionCard = styled(Card)(({ theme }) => ({
   borderRadius: 10,
-  padding: theme.spacing(3),
+  padding: theme.spacing(2.5),
   border: '1px solid #E2E8F0',
   boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
   [theme.breakpoints.down('sm')]: {
@@ -31,9 +31,10 @@ export const SectionCard = styled(Card)(({ theme }) => ({
 
 export const FiltersGrid = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: '1fr 220px',
-  gap: theme.spacing(2),
-  marginTop: theme.spacing(2),
+  gridTemplateColumns: 'minmax(280px, 560px) 190px',
+  gap: theme.spacing(1.25),
+  marginTop: theme.spacing(1.5),
+  justifyContent: 'start',
   [theme.breakpoints.down('md')]: {
     gridTemplateColumns: '1fr',
   },
@@ -47,41 +48,41 @@ export const StyledTextField = styled(TextField)(() => ({
 
 export const ListWrap = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gap: theme.spacing(2),
-  marginTop: theme.spacing(2),
+  gap: theme.spacing(1.25),
+  marginTop: theme.spacing(1.5),
 }));
 
 export const UserCard = styled(Box)(({ theme }) => ({
   border: '1px solid #E2E8F0',
   backgroundColor: '#FFFFFF',
   borderRadius: 12,
-  padding: theme.spacing(2),
-}));
-
-export const MetaGrid = styled(Box)(({ theme }) => ({
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: theme.spacing(1.5, 2),
-  marginTop: theme.spacing(1.5),
-  [theme.breakpoints.down('md')]: {
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  },
-  [theme.breakpoints.down('sm')]: {
-    gridTemplateColumns: '1fr',
-  },
+  padding: theme.spacing(1.75),
 }));
 
 export const EditGrid = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: '180px 180px 1fr auto',
-  gap: theme.spacing(1.5),
+  gridTemplateColumns: '160px 180px minmax(220px, 1fr) auto',
+  gap: theme.spacing(1.25),
   alignItems: 'end',
-  marginTop: theme.spacing(2),
+  marginTop: theme.spacing(1.25),
+  '& .user-edit-actions .MuiButton-root': {
+    minHeight: 44,
+    whiteSpace: 'nowrap',
+  },
   [theme.breakpoints.down('lg')]: {
     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    '& .user-edit-actions': {
+      gridColumn: '1 / -1',
+      justifyContent: 'flex-end',
+    },
   },
   [theme.breakpoints.down('sm')]: {
     gridTemplateColumns: '1fr',
+    '& .user-edit-actions': {
+      display: 'grid',
+      gridTemplateColumns: '1fr',
+      '& .MuiButton-root': { width: '100%' },
+    },
   },
 }));
 
@@ -94,18 +95,10 @@ export const EmptyWrap = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(2),
 }));
 
-export const HelperBox = styled(Box)(({ theme }) => ({
-  marginTop: theme.spacing(2),
-  border: '1px solid #E2E8F0',
-  backgroundColor: '#F8FAFC',
-  borderRadius: 10,
-  padding: theme.spacing(1.75),
-}));
-
 export const CreateUserForm = styled('form')(({ theme }) => ({
   display: 'grid',
   gap: theme.spacing(2),
-  marginTop: theme.spacing(2.5),
+  marginTop: theme.spacing(2),
 }));
 
 export const CreateUserGrid = styled(Box)(({ theme }) => ({
@@ -126,9 +119,24 @@ export const PasswordFieldWrap = styled(Box)(({ theme }) => ({
   [theme.breakpoints.down('sm')]: { maxWidth: 'none' },
 }));
 
+export const CreateFooterGrid = styled(Box)(({ theme }) => ({
+  display: 'grid',
+  gridTemplateColumns: 'minmax(280px, 420px) auto',
+  alignItems: 'start',
+  justifyContent: 'space-between',
+  gap: theme.spacing(2),
+  [theme.breakpoints.down('sm')]: {
+    gridTemplateColumns: '1fr',
+  },
+}));
+
 export const FormActions = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'flex-end',
+  '& .MuiButton-root': {
+    minHeight: 48,
+    paddingInline: theme.spacing(3),
+  },
   [theme.breakpoints.down('sm')]: {
     '& .MuiButton-root': { width: '100%' },
   },

@@ -32,14 +32,13 @@ import { singleRelation } from '@/src/lib/supabase/relations';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
 import {
   EditGrid,
+  CreateFooterGrid,
   CreateUserForm,
   CreateUserGrid,
   EmptyWrap,
   FiltersGrid,
-  HelperBox,
   FormActions,
   ListWrap,
-  MetaGrid,
   PasswordFieldWrap,
   SectionCard,
   StatCard,
@@ -261,12 +260,11 @@ export default function AdminUsersScreen() {
     if (!draft) return;
 
     if (draft.role === 'USER' && !draft.company_id) {
-      setErrorMessage('A USER must be assigned to a company before saving.');
+      showToast('Assign the user to a company before saving.', 'error');
       return;
     }
 
     setSavingUserId(user.id);
-    setErrorMessage('');
 
     const payload = {
       role: draft.role,
@@ -312,7 +310,7 @@ export default function AdminUsersScreen() {
     const accountStatus = createDraft.accountStatus;
 
     if (!email || !firstName || !lastName) {
-      setErrorMessage('Email, first name, and last name are required.');
+      showToast('Email, first name, and last name are required.', 'error');
       if (!email) emailRef.current?.focus();
       else if (!firstName) firstNameRef.current?.focus();
       else lastNameRef.current?.focus();
@@ -320,23 +318,22 @@ export default function AdminUsersScreen() {
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setErrorMessage('Enter a valid email address.');
+      showToast('Enter a valid email address.', 'error');
       emailRef.current?.focus();
       return;
     }
 
     if (password && password.length < 12) {
-      setErrorMessage('Passwords must contain at least 12 characters.');
+      showToast('Passwords must contain at least 12 characters.', 'error');
       return;
     }
 
     if (role === 'USER' && !companyId) {
-      setErrorMessage('USER accounts require a company.');
+      showToast('Assign the user to a company before creating the account.', 'error');
       return;
     }
 
     setCreatingUser(true);
-    setErrorMessage('');
 
     const {
       data: { session },
@@ -495,7 +492,7 @@ export default function AdminUsersScreen() {
 
   return (
     <AppShell title="User Management" subtitle="Create accounts, manage roles, and assign companies" navItems={adminNavigation}>
-      <Stack spacing={3}>
+      <Stack spacing={2.5}>
         {errorMessage ? (
           <Alert severity="error" action={<Button color="inherit" onClick={() => void loadUsers()}>Retry</Button>}>
             {errorMessage}
@@ -576,64 +573,19 @@ export default function AdminUsersScreen() {
                         {request.email}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Company: {request.company_name || '—'}
+                        {request.company_name || 'No company provided'} · Submitted {formatDate(request.created_at)}
                       </Typography>
                     </Box>
                     <StatusChip status={request.status} />
                   </Stack>
 
-                  <MetaGrid>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Company
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {request.company_name || '—'}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        First Name
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {request.first_name}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Last Name
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {request.last_name}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Submitted
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {formatDate(request.created_at)}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Request ID
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {request.id}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ gridColumn: { xs: 'auto', md: '1 / -1' } }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Notes
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {request.notes || '—'}
-                      </Typography>
-                    </Box>
-                  </MetaGrid>
+                  {request.notes ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1.25 }}>
+                      <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>Notes:</Box>{' '}{request.notes}
+                    </Typography>
+                  ) : null}
 
-                  <Stack direction="row" spacing={1.5} sx={{ mt: 2, flexWrap: 'wrap' }}>
+                  <Stack direction="row" spacing={1.25} useFlexGap sx={{ mt: 1.5, flexWrap: 'wrap' }}>
                     <Button
                       variant="outlined"
                       onClick={() => prefillCreateFromRequest(request)}
@@ -762,59 +714,50 @@ export default function AdminUsersScreen() {
             </StyledTextField>
           </CreateUserGrid>
 
-          <PasswordFieldWrap>
-            <StyledTextField
-              id="create-user-password"
-              name="newPassword"
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="new-password"
-              value={createDraft.password}
-              onChange={(e) =>
-                setCreateDraft((prev) => ({ ...prev, password: e.target.value }))
-              }
-              fullWidth
-              helperText="Optional. Leave blank to generate a temporary password."
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        edge="end"
-                        onClick={() => setShowPassword((visible) => !visible)}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </PasswordFieldWrap>
+          <CreateFooterGrid>
+            <PasswordFieldWrap>
+              <StyledTextField
+                id="create-user-password"
+                name="newPassword"
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={createDraft.password}
+                onChange={(e) =>
+                  setCreateDraft((prev) => ({ ...prev, password: e.target.value }))
+                }
+                fullWidth
+                helperText="Optional. Leave blank to generate a temporary password."
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          edge="end"
+                          onClick={() => setShowPassword((visible) => !visible)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            </PasswordFieldWrap>
 
-          <FormActions>
-          <Button
-            type="submit"
-            variant="contained"
-            size="large"
-            disabled={creatingUser}
-            onClick={handleCreateUser}
-            sx={{
-              mt: 2,
-              minHeight: 52,
-              borderRadius: 4,
-              textTransform: 'none',
-              fontWeight: 700,
-            }}
-          >
-            {creatingUser ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              'Create User'
-            )}
-          </Button>
-          </FormActions>
+            <FormActions>
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={creatingUser}
+                onClick={handleCreateUser}
+              >
+                {creatingUser ? <CircularProgress size={20} color="inherit" /> : 'Create User'}
+              </Button>
+            </FormActions>
+          </CreateFooterGrid>
           </CreateUserForm>
         </SectionCard>
 
@@ -826,20 +769,9 @@ export default function AdminUsersScreen() {
             Search, review company assignment, and update account status.
           </Typography>
 
-          <HelperBox>
-            <Typography variant="body2" color="text.secondary">
-              Rules:
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              • <strong>USER</strong> accounts should have a company assigned.
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • <strong>ADMIN</strong> accounts should not have a company assigned.
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • New accounts can start as <strong>PENDING</strong> until reviewed.
-            </Typography>
-          </HelperBox>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            Users require a company; administrators do not. Use Pending for accounts awaiting approval.
+          </Typography>
 
           <FiltersGrid>
             <StyledTextField label="Search" value={filters.search} onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))} fullWidth />
@@ -880,55 +812,15 @@ export default function AdminUsersScreen() {
                         <Typography variant="body2" color="text.secondary">
                           {user.email || user.id}
                         </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                          {user.company?.name || (user.role === 'ADMIN' ? 'No company' : 'Unassigned')} · Created {formatDate(user.created_at)}
+                        </Typography>
                       </Box>
                       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                         <StatusChip status={user.role} label={user.role} />
                         <StatusChip status={user.account_status} />
                       </Stack>
                     </Stack>
-
-                    <MetaGrid>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Company
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {user.company?.name || (user.role === 'ADMIN' ? '—' : 'Unassigned')}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Role
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {user.role}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Account Status
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {user.account_status}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Created
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {formatDate(user.created_at)}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Profile ID
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {user.id}
-                        </Typography>
-                      </Box>
-                    </MetaGrid>
 
                     <EditGrid>
                       <StyledTextField
@@ -995,37 +887,29 @@ export default function AdminUsersScreen() {
                         ))}
                       </StyledTextField>
 
-                      <Button
-                        variant="contained"
-                        onClick={() => handleSaveUser(user)}
-                        disabled={savingUserId === user.id}
-                        sx={{
-                          minHeight: 56,
-                          borderRadius: 4,
-                          textTransform: 'none',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {savingUserId === user.id ? <CircularProgress size={18} color="inherit" /> : 'Save User'}
-                      </Button>
-                    </EditGrid>
-
-                    {user.id !== profile.id ? (
-                      <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 1.5 }}>
+                      <Stack className="user-edit-actions" direction="row" spacing={1}>
                         <Button
-                          variant="outlined"
-                          color="error"
-                          onClick={() => {
-                            setDeleteUser(user);
-                            setDeleteError('');
-                          }}
-                          disabled={Boolean(deletingUserId)}
-                          sx={{ minHeight: 44, borderRadius: 4, textTransform: 'none', fontWeight: 700 }}
+                          variant="contained"
+                          onClick={() => handleSaveUser(user)}
+                          disabled={savingUserId === user.id}
                         >
-                          Delete user
+                          {savingUserId === user.id ? <CircularProgress size={18} color="inherit" /> : 'Save changes'}
                         </Button>
+                        {user.id !== profile.id ? (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={() => {
+                              setDeleteUser(user);
+                              setDeleteError('');
+                            }}
+                            disabled={Boolean(deletingUserId)}
+                          >
+                            Delete user
+                          </Button>
+                        ) : null}
                       </Stack>
-                    ) : null}
+                    </EditGrid>
                   </UserCard>
                 );
               })}
