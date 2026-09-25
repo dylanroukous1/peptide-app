@@ -15,6 +15,7 @@ const deleteCompanyMigrationPath = 'supabase/migrations/20260924125000_add_admin
 const deleteUserMigrationPath = 'supabase/migrations/20260924126000_add_admin_user_deletion.sql';
 const deletePeptideMigrationPath = 'supabase/migrations/20260924127000_add_admin_peptide_deletion.sql';
 const removeOrderMinimumsMigrationPath = 'supabase/migrations/20260925090000_remove_order_minimums.sql';
+const deleteAccessRequestMigrationPath = 'supabase/migrations/20260925091000_add_admin_access_request_deletion.sql';
 
 test('removed wishlist and batch management routes are not addressable', () => {
   assert.equal(existsSync(new URL('../app/wishlist/page.tsx', import.meta.url)), false);
@@ -896,4 +897,26 @@ test('admin peptide catalog filters by activity and keeps desktop actions compac
   assert.match(styles, /gridTemplateColumns: 'minmax\(0, 1fr\) 180px'/);
   assert.match(styles, /justifyContent: 'flex-end'/);
   assert.match(styles, /theme\.breakpoints\.down\('md'\)[\s\S]*gridTemplateColumns: '1fr'/);
+});
+
+test('active admins can permanently delete access requests with one confirmation', () => {
+  const sql = read(deleteAccessRequestMigrationPath);
+  const users = read('src/screens/AdminUsersScreen/index.tsx');
+  const formatter = read('src/lib/audit/formatAuditEvent.ts');
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /create or replace function public\.admin_delete_access_request/);
+  assert.match(sql, /security definer[\s\S]*set search_path = public, pg_temp/);
+  assert.match(sql, /role = 'ADMIN'[\s\S]*account_status = 'ACTIVE'/);
+  assert.match(sql, /where id = p_request_id\s+for update/);
+  assert.match(sql, /'ACCESS_REQUEST_DELETED'/);
+  assert.match(sql, /delete from public\.account_requests where id = v_request\.id/);
+  assert.match(sql, /revoke delete on table public\.account_requests from authenticated/);
+  assert.match(sql, /revoke all on function public\.admin_delete_access_request\(uuid\) from public/);
+  assert.match(sql, /revoke all on function public\.admin_delete_access_request\(uuid\) from anon/);
+  assert.match(users, /supabase\.rpc\('admin_delete_access_request'/);
+  assert.match(users, /Delete request/);
+  assert.match(users, /Delete access request\?/);
+  assert.match(users, /setRequests\(\(current\) => current\.filter/);
+  assert.match(formatter, /action === 'ACCESS_REQUEST_DELETED'/);
 });

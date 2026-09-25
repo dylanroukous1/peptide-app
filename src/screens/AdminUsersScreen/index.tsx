@@ -116,6 +116,9 @@ export default function AdminUsersScreen() {
   const [deleteUser, setDeleteUser] = useState<ProfileRow | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [deleteRequest, setDeleteRequest] = useState<AccountRequestRow | null>(null);
+  const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
+  const [deleteRequestError, setDeleteRequestError] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast, showToast, closeToast } = useAppToast();
@@ -458,6 +461,30 @@ export default function AdminUsersScreen() {
     );
   };
 
+  const handleDeleteRequest = async () => {
+    if (!deleteRequest || deletingRequestId) return;
+
+    setDeletingRequestId(deleteRequest.id);
+    setDeleteRequestError('');
+
+    const { error } = await supabase.rpc('admin_delete_access_request', {
+      p_request_id: deleteRequest.id,
+    });
+
+    if (error) {
+      setDeleteRequestError(error.message);
+      setDeletingRequestId(null);
+      return;
+    }
+
+    const deletedId = deleteRequest.id;
+    const deletedEmail = deleteRequest.email;
+    setRequests((current) => current.filter((request) => request.id !== deletedId));
+    setDeleteRequest(null);
+    setDeletingRequestId(null);
+    showToast(`Access request from ${deletedEmail} deleted permanently.`);
+  };
+
   if (sessionLoading || loading) {
     return <PageSkeleton label="Loading users and access requests" />;
   }
@@ -613,6 +640,18 @@ export default function AdminUsersScreen() {
                       sx={{ textTransform: 'none', fontWeight: 700 }}
                     >
                       Use for create form
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={() => {
+                        setDeleteRequest(request);
+                        setDeleteRequestError('');
+                      }}
+                      disabled={Boolean(deletingRequestId)}
+                      sx={{ textTransform: 'none', fontWeight: 700 }}
+                    >
+                      Delete request
                     </Button>
                   </Stack>
                 </UserCard>
@@ -994,6 +1033,27 @@ export default function AdminUsersScreen() {
           )}
         </SectionCard>
       </Stack>
+      <Dialog
+        open={Boolean(deleteRequest)}
+        onClose={() => deletingRequestId ? undefined : setDeleteRequest(null)}
+        aria-labelledby="delete-access-request-title"
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle id="delete-access-request-title">Delete access request?</DialogTitle>
+        <DialogContent>
+          <Alert severity="error">
+            Delete the access request from {deleteRequest?.email}? This action cannot be undone.
+          </Alert>
+          {deleteRequestError ? <Alert severity="error" sx={{ mt: 2 }}>{deleteRequestError}</Alert> : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteRequest(null)} disabled={Boolean(deletingRequestId)}>Keep request</Button>
+          <Button color="error" variant="contained" onClick={() => void handleDeleteRequest()} disabled={Boolean(deletingRequestId)}>
+            {deletingRequestId ? <CircularProgress size={18} color="inherit" /> : 'Delete permanently'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={Boolean(deleteUser)}
         onClose={() => deletingUserId ? undefined : setDeleteUser(null)}

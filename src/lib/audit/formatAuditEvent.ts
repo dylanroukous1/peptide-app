@@ -131,6 +131,10 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
     if (action.includes('CREAT')) return `A new user account was created for ${name}.`;
     return `${actor} updated the account for ${name}.`;
   }
+  if (entityType === 'access_request') {
+    const email = String(event.after_json?.email || event.before_json?.email || 'an unknown email');
+    if (action === 'ACCESS_REQUEST_DELETED') return `${actor} permanently deleted the access request from ${email}.`;
+  }
 
   return `${actor} ${humanizeAuditValue(event.action).toLowerCase()} ${humanizeAuditValue(event.entity_type).toLowerCase() || 'a record'}.`;
 }
