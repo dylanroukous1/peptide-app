@@ -82,6 +82,23 @@ export const ReviewBox = styled(Box)(({ theme }) => ({
   padding: theme.spacing(2),
 }));
 
+export const PaymentInstructionsCard = styled(Box)(({ theme }) => ({
+  border: '1px solid #D8E5EC',
+  backgroundColor: '#F4F8FA',
+  borderRadius: 10,
+  padding: theme.spacing(1.75),
+}));
+
+export const PaymentInstructionRow = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: theme.spacing(1),
+  minHeight: 48,
+  padding: theme.spacing(0.5, 0),
+  borderTop: '1px solid #E2E8F0',
+}));
+
 export const OrderItemsList = styled(Box)(({ theme }) => ({
   display: 'grid',
   gap: theme.spacing(1.5),

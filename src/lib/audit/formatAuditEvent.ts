@@ -133,6 +133,8 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
   }
   if (entityType === 'access_request') {
     const email = String(event.after_json?.email || event.before_json?.email || 'an unknown email');
+    if (action === 'ACCESS_REQUEST_APPROVED') return `${actor} approved the access request for ${email} and activated the account.`;
+    if (action === 'ACCESS_REQUEST_REJECTED') return `${actor} rejected the access request from ${email}.`;
     if (action === 'ACCESS_REQUEST_DELETED') return `${actor} permanently deleted the access request from ${email}.`;
   }
 

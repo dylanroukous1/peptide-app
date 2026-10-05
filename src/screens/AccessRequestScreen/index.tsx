@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
+  MenuItem,
   Stack,
   Typography,
 } from '@mui/material';
@@ -25,20 +26,43 @@ import {
 } from './styles';
 
 export default function AccessRequestScreen() {
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
+  const [companyLoadError, setCompanyLoadError] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [companyName, setCompanyName] = useState('');
+  const [companyId, setCompanyId] = useState('');
   const [notes, setNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { toast, showToast, closeToast } = useAppToast();
 
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/public/companies', { cache: 'no-store' })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Unable to load companies.');
+        if (!active) return;
+        setCompanies(payload.companies || []);
+        setCompanyLoadError('');
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setCompanyLoadError(error instanceof Error ? error.message : 'Unable to load companies.');
+      })
+      .finally(() => {
+        if (active) setLoadingCompanies(false);
+      });
+    return () => { active = false; };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !companyId) {
       setErrorMessage('Please fill in the required fields.');
       return;
     }
@@ -53,7 +77,8 @@ export default function AccessRequestScreen() {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       email: email.trim().toLowerCase(),
-      company_name: companyName.trim() || null,
+      company_id: companyId,
+      company_name: companies.find((company) => company.id === companyId)?.name || null,
       notes: notes.trim() || null,
       status: 'PENDING',
     });
@@ -68,7 +93,7 @@ export default function AccessRequestScreen() {
     setFirstName('');
     setLastName('');
     setEmail('');
-    setCompanyName('');
+    setCompanyId('');
     setNotes('');
     setSubmitting(false);
   };
@@ -90,7 +115,7 @@ export default function AccessRequestScreen() {
                 Request access
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mt: 2, maxWidth: 560 }}>
-                Use this form if you need an account. An admin will review your request and create the user.
+                Use this form to request an account. An admin will review your request and approve access for your selected company.
               </Typography>
             </Box>
             <Stack spacing={2}>
@@ -99,7 +124,7 @@ export default function AccessRequestScreen() {
                   What happens next
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Your request is saved for admin review. If approved, an admin will create your account and assign access.
+                  If approved, your account will be activated for the company you select below. The administrator will share your sign-in details with you.
                 </Typography>
               </InfoTile>
               <InfoTile>
@@ -126,10 +151,22 @@ export default function AccessRequestScreen() {
               <StyledTextField label="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} fullWidth required />
             </TwoColumnGrid>
             <StyledTextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth required />
-            <StyledTextField label="Company Name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} fullWidth />
+            <StyledTextField
+              select
+              label="Company"
+              value={companyId}
+              onChange={(event) => setCompanyId(event.target.value)}
+              fullWidth
+              required
+              disabled={loadingCompanies || companies.length === 0}
+            >
+              <MenuItem value="">{loadingCompanies ? 'Loading companies…' : 'Select your company'}</MenuItem>
+              {companies.map((company) => <MenuItem key={company.id} value={company.id}>{company.name}</MenuItem>)}
+            </StyledTextField>
+            {companyLoadError ? <Alert severity="error">{companyLoadError}</Alert> : null}
             <StyledTextField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} fullWidth multiline minRows={3} />
             {errorMessage ? <Alert id="access-request-error" severity="error">{errorMessage}</Alert> : null}
-            <Button type="submit" variant="contained" size="large" disabled={submitting} sx={{ mt: 1, minHeight: 52, borderRadius: 4, textTransform: 'none', fontWeight: 700 }} fullWidth>
+            <Button type="submit" variant="contained" size="large" disabled={submitting || loadingCompanies || companies.length === 0} sx={{ mt: 1, minHeight: 52, borderRadius: 4, textTransform: 'none', fontWeight: 700 }} fullWidth>
               {submitting ? <CircularProgress size={22} color="inherit" /> : 'Submit Request'}
             </Button>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>

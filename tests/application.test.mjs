@@ -16,6 +16,8 @@ const deleteUserMigrationPath = 'supabase/migrations/20260924126000_add_admin_us
 const deletePeptideMigrationPath = 'supabase/migrations/20260924127000_add_admin_peptide_deletion.sql';
 const removeOrderMinimumsMigrationPath = 'supabase/migrations/20260925090000_remove_order_minimums.sql';
 const deleteAccessRequestMigrationPath = 'supabase/migrations/20260925091000_add_admin_access_request_deletion.sql';
+const accessRequestApprovalMigrationPath = 'supabase/migrations/20261005090000_access_request_company_approval.sql';
+const shortOrderNumberMigrationPath = 'supabase/migrations/20261005100000_use_short_sequential_order_numbers.sql';
 
 test('removed wishlist and batch management routes are not addressable', () => {
   assert.equal(existsSync(new URL('../app/wishlist/page.tsx', import.meta.url)), false);
@@ -187,7 +189,7 @@ test('current multi-order RPC accepts any positive whole-number quantity', () =>
   assert.doesNotMatch(sql, /v_quantity_numeric < 250|v_total_quantity < 2000|2,000 total vials/);
   assert.doesNotMatch(orderForm, /SKU_MINIMUM|ORDER_MINIMUM|250 vials|2,000/);
   assert.match(orderForm, /Number\.isInteger\(quantity\) && quantity > 0/);
-  assert.match(orderForm, /quantity: '1'/);
+  assert.match(orderForm, /quantity: '0'/);
   assert.match(sql, /revoke all on function public\.submit_product_order\(uuid, uuid, integer, text\) from authenticated/);
 });
 
@@ -320,7 +322,7 @@ test('mutation feedback uses shared toasts and order success cannot show an empt
   assert.doesNotMatch(orderForm, /severity="success" role="status"/);
   assert.match(orderForm, /setFormError\(''\)[\s\S]*setItems\(\[\]\)[\s\S]*showToast/);
   assert.match(snackbar, /anchorOrigin=\{\{ vertical: 'top', horizontal: 'center' \}\}/);
-  assert.match(toastHook, /setToast\(\{ open: true, message, severity \}\)/);
+  assert.match(toastHook, /setToast\(\{ open: true, message, severity, action \}\)/);
   for (const screen of mutationScreens) {
     assert.match(screen, /<AppSnackbar \{\.\.\.toast\} onClose=\{closeToast\}/);
   }
@@ -337,14 +339,21 @@ test('create user fields have unambiguous mapping and browser autocomplete purpo
   assert.match(screen, /type="submit"[\s\S]*disabled=\{creatingUser\}/);
 });
 
-test('access-request prefill maps every identity value to the correct create-user field', () => {
-  const screen = read('src/screens/AdminUsersScreen/index.tsx');
-  const prefill = screen.match(/const prefillCreateFromRequest[\s\S]*?\n  };/)?.[0] || '';
+test('access requests capture company and admin approval provisions active accounts', () => {
+  const accessRequest = read('src/screens/AccessRequestScreen/index.tsx');
+  const users = read('src/screens/AdminUsersScreen/index.tsx');
+  const api = read('app/api/admin/access-requests/route.ts');
 
-  assert.match(prefill, /email: request\.email/);
-  assert.match(prefill, /firstName: request\.first_name/);
-  assert.match(prefill, /lastName: request\.last_name/);
-  assert.match(prefill, /companyId: matchedCompanyId/);
+  assert.match(accessRequest, /fetch\('\/api\/public\/companies'/);
+  assert.match(accessRequest, /company_id: companyId/);
+  assert.match(accessRequest, /label="Company"[\s\S]*required/);
+  assert.match(users, /Approve & create account/);
+  assert.match(users, /Reject/);
+  assert.match(users, /label: 'Copy credentials'/);
+  assert.match(api, /auth\.admin\.createUser/);
+  assert.match(api, /admin_finalize_access_request/);
+  assert.match(api, /randomPassword/);
+  assert.doesNotMatch(api, /console\.(log|error).*password/i);
 });
 
 test('create-user layout uses three, two, and one responsive columns', () => {
@@ -357,7 +366,7 @@ test('create-user layout uses three, two, and one responsive columns', () => {
 test('admin users use compact records and shared toast validation feedback', () => {
   const screen = read('src/screens/AdminUsersScreen/index.tsx');
   const styles = read('src/screens/AdminUsersScreen/styles.ts');
-  const createHandler = screen.match(/const handleCreateUser[\s\S]*?const prefillCreateFromRequest/)?.[0] || '';
+  const createHandler = screen.match(/const handleCreateUser[\s\S]*?const callAdminEndpoint/)?.[0] || '';
 
   assert.match(createHandler, /showToast\('Email, first name, and last name are required\.', 'error'\)/);
   assert.match(createHandler, /showToast\('Enter a valid email address\.', 'error'\)/);
@@ -942,4 +951,78 @@ test('active admins can permanently delete access requests with one confirmation
   assert.match(users, /Delete access request\?/);
   assert.match(users, /setRequests\(\(current\) => current\.filter/);
   assert.match(formatter, /action === 'ACCESS_REQUEST_DELETED'/);
+});
+
+test('account requests capture companies and approval safely provisions active users', () => {
+  const sql = read(accessRequestApprovalMigrationPath);
+  const publicCompanies = read('app/api/public/companies/route.ts');
+  const approvalRoute = read('app/api/admin/access-requests/route.ts');
+  const passwordRoute = read('app/api/admin/users/password/route.ts');
+  const accessRequest = read('src/screens/AccessRequestScreen/index.tsx');
+  const users = read('src/screens/AdminUsersScreen/index.tsx');
+  const audit = read('src/lib/audit/formatAuditEvent.ts');
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /add column if not exists company_id uuid[\s\S]*references public\.companies/);
+  assert.match(sql, /create trigger validate_access_request_company/);
+  assert.match(sql, /new\.company_id is null/);
+  assert.match(sql, /c\.is_active = true/);
+  assert.match(sql, /create or replace function public\.admin_finalize_access_request/);
+  assert.match(sql, /account_status = 'ACTIVE'[\s\S]*from public\.account_requests[\s\S]*for update/);
+  assert.match(sql, /account_status = 'ACTIVE'[\s\S]*company_id = excluded\.company_id/);
+  assert.match(sql, /set status = 'APPROVED'/);
+  assert.match(sql, /'ACCESS_REQUEST_APPROVED'/);
+  assert.match(sql, /grant execute on function public\.admin_finalize_access_request\(uuid, uuid, uuid\) to service_role/);
+  assert.match(sql, /revoke all on function public\.admin_finalize_access_request\(uuid, uuid, uuid\) from authenticated/);
+  assert.match(sql, /create or replace function public\.admin_reject_access_request/);
+  assert.match(publicCompanies, /select\('id, name'\)[\s\S]*eq\('is_active', true\)/);
+  assert.match(accessRequest, /label="Company"[\s\S]*required/);
+  assert.match(accessRequest, /company_id: companyId/);
+  assert.match(approvalRoute, /auth\.getUser\(token\)/);
+  assert.match(approvalRoute, /role !== 'ADMIN'[\s\S]*account_status !== 'ACTIVE'/);
+  assert.match(approvalRoute, /auth\.admin\.createUser/);
+  assert.match(approvalRoute, /admin_finalize_access_request/);
+  assert.match(approvalRoute, /auth\.admin\.deleteUser\(createdAuth\.user\.id\)/);
+  assert.match(users, /Approve & create account/);
+  assert.match(users, /\.from\('account_requests'\)[\s\S]*\.eq\('status', 'PENDING'\)/);
+  assert.match(users, /setRequests\(\(current\) => current\.filter\(\(item\) => item\.id !== request\.id\)\)/);
+  assert.match(users, /No pending access requests/);
+  assert.match(users, /label: 'Copy credentials'/);
+  assert.match(users, /Change password/);
+  assert.match(passwordRoute, /auth\.admin\.updateUserById\(userId, \{ password \}\)/);
+  assert.match(passwordRoute, /role !== 'ADMIN'[\s\S]*account_status !== 'ACTIVE'/);
+  assert.doesNotMatch(passwordRoute, /console\.(log|error).*password/i);
+  assert.match(audit, /ACCESS_REQUEST_APPROVED/);
+  assert.match(audit, /ACCESS_REQUEST_REJECTED/);
+});
+
+test('customer order builder normalizes leading zero quantities and provides copyable wire details', () => {
+  const builder = read('src/screens/UserDashboardScreen/index.tsx');
+  const styles = read('src/screens/UserDashboardScreen/styles.ts');
+
+  assert.match(builder, /quantity: '0'/);
+  assert.match(builder, /quantityText: item\.quantity/);
+  assert.ok(builder.includes("quantity.replace(/^0+(?=\\d)/, '')"));
+  assert.match(builder, /onFocus=\{\(\) => \{[\s\S]*item\.quantity === 0[\s\S]*updateQuantity\(item\.peptideId, ''\)/);
+  assert.match(builder, /value=\{item\.quantityText\}/);
+  assert.match(builder, /\['Bank', 'Chase Bank'\]/);
+  assert.match(builder, /\['Business Name', 'Coastal Research Partners LLC'\]/);
+  assert.match(builder, /\['Account', '2911819567'\]/);
+  assert.match(builder, /\['Routing \(ACH \/ direct deposit only\)', '072000326'\]/);
+  assert.match(builder, /\['Wire Routing', '021000021'\]/);
+  assert.match(builder, /Copy all details/);
+  assert.match(builder, /aria-label=\{`Copy \$\{label\}`\}/);
+  assert.match(styles, /export const PaymentInstructionsCard/);
+  assert.match(styles, /export const PaymentInstructionRow/);
+});
+
+test('new order numbers are sequential short references assigned by the database', () => {
+  const sql = read(shortOrderNumberMigrationPath);
+
+  assert.match(sql, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(sql, /create sequence if not exists public\.order_number_short_seq[\s\S]*start with 110021/);
+  assert.match(sql, /max\(substring\(o\.order_number from '\^D\(\[0-9\]\+\)\$'\)::bigint\)/);
+  assert.match(sql, /new\.order_number := 'D' \|\| nextval\('public\.order_number_short_seq'::regclass\)::text/);
+  assert.match(sql, /before insert on public\.orders[\s\S]*execute function public\.assign_short_order_number/);
+  assert.match(sql, /revoke all on sequence public\.order_number_short_seq from authenticated/);
 });

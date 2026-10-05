@@ -70,6 +70,7 @@ type AccountRequestRow = {
   last_name: string;
   email: string;
   company_name: string | null;
+  company_id: string | null;
   notes: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   created_at: string;
@@ -118,6 +119,12 @@ export default function AdminUsersScreen() {
   const [deleteRequest, setDeleteRequest] = useState<AccountRequestRow | null>(null);
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
   const [deleteRequestError, setDeleteRequestError] = useState('');
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const [passwordUser, setPasswordUser] = useState<ProfileRow | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast, showToast, closeToast } = useAppToast();
@@ -165,7 +172,8 @@ export default function AdminUsersScreen() {
         .order('name', { ascending: true }),
       supabase
         .from('account_requests')
-        .select('id, first_name, last_name, email, company_name, notes, status, created_at')
+        .select('id, first_name, last_name, email, company_name, company_id, notes, status, created_at')
+        .eq('status', 'PENDING')
         .order('created_at', { ascending: false })
         .limit(20),
     ]);
@@ -375,7 +383,21 @@ export default function AdminUsersScreen() {
       ? `User created successfully. Share this email and password with the user: ${payload.email} / ${finalPassword}`
       : `User created successfully. Share this email with the user: ${payload.email}`;
 
-    showToast(successMessage);
+    showToast(
+      successMessage,
+      'success',
+      finalPassword ? {
+        label: 'Copy credentials',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(`Email: ${payload.email}\nPassword: ${finalPassword}`);
+            showToast('Email and temporary password copied.');
+          } catch {
+            showToast('Could not access the clipboard.', 'error');
+          }
+        },
+      } : undefined
+    );
     setCreateDraft({
       email: '',
       firstName: '',
@@ -437,25 +459,87 @@ export default function AdminUsersScreen() {
     showToast(`User ${deletedLabel} deleted permanently.`);
   };
 
-  const prefillCreateFromRequest = (request: AccountRequestRow) => {
-    const matchedCompanyId =
-      companies.find(
-        (company) =>
-          company.name.trim().toLowerCase() === request.company_name?.trim().toLowerCase()
-      )?.id || '';
+  const callAdminEndpoint = async (path: string, body: Record<string, string>) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Your session expired. Please log in again.');
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'The request could not be completed.');
+    return payload;
+  };
 
-    setCreateDraft((prev) => ({
-      ...prev,
-      email: request.email,
-      firstName: request.first_name,
-      lastName: request.last_name,
-      companyId: matchedCompanyId,
-      accountStatus: 'PENDING',
-    }));
-    showToast(
-      `Prefilled create form from request by ${request.first_name} ${request.last_name}.`,
-      'info'
-    );
+  const handleAccessRequest = async (request: AccountRequestRow, action: 'approve' | 'reject') => {
+    if (processingRequestId) return;
+    setProcessingRequestId(request.id);
+    try {
+      const payload = await callAdminEndpoint('/api/admin/access-requests', { requestId: request.id, action });
+      if (action === 'reject') {
+        setRequests((current) => current.filter((item) => item.id !== request.id));
+        showToast(`Access request from ${request.email} rejected.`);
+        return;
+      }
+
+      const createdProfile = payload.profile as Omit<ProfileRow, 'company'>;
+      const createdUser: ProfileRow = {
+        ...createdProfile,
+        company: companies.find((company) => company.id === createdProfile.company_id) || null,
+      };
+      setUsers((current) => [createdUser, ...current]);
+      setDrafts((current) => ({
+        ...current,
+        [createdUser.id]: { role: 'USER', account_status: 'ACTIVE', company_id: createdUser.company_id || '' },
+      }));
+      setRequests((current) => current.filter((item) => item.id !== request.id));
+
+      const credentials = `Email: ${payload.email}\nPassword: ${payload.generatedPassword}`;
+      showToast(
+        `Account approved. Email: ${payload.email} · Temporary password: ${payload.generatedPassword}`,
+        'success',
+        {
+          label: 'Copy credentials',
+          onClick: async () => {
+            try {
+              await navigator.clipboard.writeText(credentials);
+              showToast('Email and temporary password copied.');
+            } catch {
+              showToast('Could not access the clipboard. Copy the credentials manually.', 'error');
+            }
+          },
+        }
+      );
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'The request could not be completed.', 'error');
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordUser || changingPassword) return;
+    if (newPassword.trim().length < 12) {
+      showToast('Password must contain at least 12 characters.', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast('The passwords do not match.', 'error');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await callAdminEndpoint('/api/admin/users/password', { userId: passwordUser.id, password: newPassword });
+      showToast(`Password updated for ${passwordUser.email || 'the selected account'}.`);
+      setPasswordUser(null);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Password could not be changed.', 'error');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const handleDeleteRequest = async () => {
@@ -542,13 +626,13 @@ export default function AdminUsersScreen() {
             Access Requests
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Public account requests submitted through the login page.
+            Pending account requests submitted through the login page.
           </Typography>
 
           {requests.length === 0 ? (
             <EmptyWrap>
               <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
-                No access requests yet
+                No pending access requests
               </Typography>
             </EmptyWrap>
           ) : (
@@ -586,13 +670,27 @@ export default function AdminUsersScreen() {
                   ) : null}
 
                   <Stack direction="row" spacing={1.25} useFlexGap sx={{ mt: 1.5, flexWrap: 'wrap' }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => prefillCreateFromRequest(request)}
-                      sx={{ textTransform: 'none', fontWeight: 700 }}
-                    >
-                      Use for create form
-                    </Button>
+                    {request.status === 'PENDING' ? (
+                      <>
+                        <Button
+                          variant="contained"
+                          onClick={() => void handleAccessRequest(request, 'approve')}
+                          disabled={Boolean(processingRequestId)}
+                          sx={{ textTransform: 'none', fontWeight: 700 }}
+                        >
+                          {processingRequestId === request.id ? <CircularProgress size={18} color="inherit" /> : 'Approve & create account'}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          onClick={() => void handleAccessRequest(request, 'reject')}
+                          disabled={Boolean(processingRequestId)}
+                          sx={{ textTransform: 'none', fontWeight: 700 }}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    ) : null}
                     <Button
                       variant="outlined"
                       color="error"
@@ -617,8 +715,7 @@ export default function AdminUsersScreen() {
             Create New User
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Create a user account and assign their role, status and company. You can also prefill
-            the form from an access request above.
+            Create an account directly and assign its role, status and company.
           </Typography>
 
           <CreateUserForm onSubmit={handleCreateUser} noValidate>
@@ -752,7 +849,6 @@ export default function AdminUsersScreen() {
                 variant="contained"
                 size="large"
                 disabled={creatingUser}
-                onClick={handleCreateUser}
               >
                 {creatingUser ? <CircularProgress size={20} color="inherit" /> : 'Create User'}
               </Button>
@@ -895,6 +991,18 @@ export default function AdminUsersScreen() {
                         >
                           {savingUserId === user.id ? <CircularProgress size={18} color="inherit" /> : 'Save changes'}
                         </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={() => {
+                            setPasswordUser(user);
+                            setNewPassword('');
+                            setConfirmPassword('');
+                            setShowNewPassword(false);
+                          }}
+                          disabled={Boolean(changingPassword)}
+                        >
+                          Change password
+                        </Button>
                         {user.id !== profile.id ? (
                           <Button
                             variant="outlined"
@@ -917,6 +1025,50 @@ export default function AdminUsersScreen() {
           )}
         </SectionCard>
       </Stack>
+      <Dialog
+        open={Boolean(passwordUser)}
+        onClose={() => changingPassword ? undefined : setPasswordUser(null)}
+        aria-labelledby="change-user-password-title"
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle id="change-user-password-title">Change password</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Set a new sign-in password for {passwordUser?.email || 'this account'}. Share it with the user through your usual secure channel.
+          </Typography>
+          <Stack spacing={2}>
+            <StyledTextField
+              label="New password"
+              type={showNewPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              autoComplete="new-password"
+              helperText="Use at least 12 characters."
+              slotProps={{ input: { endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton aria-label={showNewPassword ? 'Hide password' : 'Show password'} onClick={() => setShowNewPassword((current) => !current)}>
+                    {showNewPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </IconButton>
+                </InputAdornment>
+              ) } }}
+            />
+            <StyledTextField
+              label="Confirm new password"
+              type={showNewPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              autoComplete="new-password"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPasswordUser(null)} disabled={changingPassword}>Cancel</Button>
+          <Button variant="contained" onClick={() => void handleChangePassword()} disabled={changingPassword}>
+            {changingPassword ? <CircularProgress size={18} color="inherit" /> : 'Update password'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={Boolean(deleteRequest)}
         onClose={() => deletingRequestId ? undefined : setDeleteRequest(null)}

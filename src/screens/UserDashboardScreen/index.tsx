@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import {
   Alert,
   Box,
@@ -37,6 +38,8 @@ import {
   OrderItemCard,
   OrderItemsList,
   MobileReviewBar,
+  PaymentInstructionRow,
+  PaymentInstructionsCard,
   ProductCard,
   ProductList,
   ReviewBox,
@@ -60,6 +63,13 @@ type OrderReceipt = {
 const emptyAddress = {
   label: '', recipient_name: '', line1: '', line2: '', city: '', state: '', postal_code: '', country: 'USA',
 };
+const paymentInstructions = [
+  ['Bank', 'Chase Bank'],
+  ['Business Name', 'Coastal Research Partners LLC'],
+  ['Account', '2911819567'],
+  ['Routing (ACH / direct deposit only)', '072000326'],
+  ['Wire Routing', '021000021'],
+] as const;
 function money(value: number | string | null | undefined) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2,
@@ -163,6 +173,7 @@ export default function UserDashboardScreen() {
     return {
       ...item,
       peptide,
+      quantityText: item.quantity,
       quantity,
       validQuantity,
       lineTotal: validQuantity ? quantity * Number(peptide?.default_unit_price || 0) : 0,
@@ -176,13 +187,35 @@ export default function UserDashboardScreen() {
   const addProduct = (peptideId: string) => {
     setItems((current) => current.some((item) => item.peptideId === peptideId)
       ? current
-      : [...current, { peptideId, quantity: '1' }]);
+      : [...current, { peptideId, quantity: '0' }]);
   };
   const updateQuantity = (peptideId: string, quantity: string) => {
-    setItems((current) => current.map((item) => item.peptideId === peptideId ? { ...item, quantity } : item));
+    const normalizedQuantity = /^\d+$/.test(quantity)
+      ? quantity.replace(/^0+(?=\d)/, '')
+      : quantity;
+    setItems((current) => current.map((item) => item.peptideId === peptideId ? { ...item, quantity: normalizedQuantity } : item));
   };
   const removeProduct = (peptideId: string) => {
     setItems((current) => current.filter((item) => item.peptideId !== peptideId));
+  };
+
+  const copyPaymentDetail = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast(`${label} copied.`);
+    } catch {
+      showToast('Could not access the clipboard.', 'error');
+    }
+  };
+
+  const copyAllPaymentDetails = async () => {
+    const content = ['PAYMENT INSTRUCTIONS', ...paymentInstructions.map(([label, value]) => `${label} ${value}`)].join('\n');
+    try {
+      await navigator.clipboard.writeText(content);
+      showToast('Payment instructions copied.');
+    } catch {
+      showToast('Could not access the clipboard.', 'error');
+    }
   };
 
   const saveAddress = async () => {
@@ -345,7 +378,10 @@ export default function UserDashboardScreen() {
                           className="order-item-quantity"
                           label="Vials"
                           type="number"
-                          value={item.quantity}
+                          value={item.quantityText}
+                          onFocus={() => {
+                            if (item.quantity === 0) updateQuantity(item.peptideId, '');
+                          }}
                           error={item.quantity > 0 && !item.validQuantity}
                           helperText={!item.validQuantity ? 'Enter a positive whole number' : ' '}
                           onChange={(event) => updateQuantity(item.peptideId, event.target.value)}
@@ -364,6 +400,29 @@ export default function UserDashboardScreen() {
                     <Stack direction="row" sx={{ justifyContent: 'space-between' }}><Typography variant="body1" sx={{ fontWeight: 800 }}>Estimated total</Typography><Typography variant="body1" sx={{ fontWeight: 800 }}>{money(totalPrice)}</Typography></Stack>
                   </Stack>
                 </ReviewBox>
+
+                <PaymentInstructionsCard>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 1 }}>
+                    <Box>
+                      <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 800 }}>Payment instructions</Typography>
+                      <Typography variant="caption" color="text.secondary">Use these details to pay for your order.</Typography>
+                    </Box>
+                    <Button type="button" size="small" variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => void copyAllPaymentDetails()}>
+                      Copy all details
+                    </Button>
+                  </Stack>
+                  {paymentInstructions.map(([label, value]) => (
+                    <PaymentInstructionRow key={label}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="caption" color="text.secondary">{label}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{value}</Typography>
+                      </Box>
+                      <IconButton type="button" aria-label={`Copy ${label}`} onClick={() => void copyPaymentDetail(value, label)}>
+                        <ContentCopyIcon fontSize="small" />
+                      </IconButton>
+                    </PaymentInstructionRow>
+                  ))}
+                </PaymentInstructionsCard>
 
                 <StyledTextField select label="Shipping address" required value={addressId} onChange={(event) => setAddressId(event.target.value)}>
                   <MenuItem value="">Select an address</MenuItem>
