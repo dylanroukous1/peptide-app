@@ -69,8 +69,18 @@ export const EditGrid = styled(Box)(({ theme }) => ({
     minHeight: 44,
     whiteSpace: 'nowrap',
   },
+  '&[data-admin-user="true"]': {
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    '& .user-edit-actions': {
+      gridColumn: '1 / -1',
+      justifyContent: 'flex-end',
+    },
+  },
   [theme.breakpoints.down('lg')]: {
     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    '&[data-admin-user="true"]': {
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    },
     '& .user-edit-actions': {
       gridColumn: '1 / -1',
       justifyContent: 'flex-end',

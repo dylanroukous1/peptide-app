@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/src/supabase/client';
 import { singleRelation } from '@/src/lib/supabase/relations';
+import { getAdminLandingPath, type AdminPageKey, type AdminPagePath } from '@/src/config/navigation';
 
 export type WorkspaceRole = 'ADMIN' | 'USER';
 
@@ -8,6 +9,7 @@ export type WorkspaceProfile = {
   id: string;
   role: WorkspaceRole;
   company_id: string | null;
+  admin_page_access?: AdminPageKey[] | null;
 };
 
 export type CustomerPeptide = {
@@ -75,8 +77,8 @@ export type PreparedWorkspace =
   | {
       userId: string;
       role: 'ADMIN';
-      destination: '/admin/orders';
-      orders: AdminOrder[];
+      destination: AdminPagePath;
+      orders: AdminOrder[] | null;
     }
   | {
       userId: string;
@@ -173,11 +175,12 @@ export async function loadPreparedWorkspace(
   profile: WorkspaceProfile
 ): Promise<PreparedWorkspace> {
   if (profile.role === 'ADMIN') {
+    const destination = getAdminLandingPath(profile.admin_page_access);
     return {
       userId: user.id,
       role: 'ADMIN',
-      destination: '/admin/orders',
-      orders: await loadAdminOrders(),
+      destination,
+      orders: destination === '/admin/orders' ? await loadAdminOrders() : null,
     };
   }
 

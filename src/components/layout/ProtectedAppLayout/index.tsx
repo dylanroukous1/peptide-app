@@ -5,9 +5,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import AppShell from '@/src/components/layout/AppShell';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import {
-  adminNavigation,
+  allowedAdminPages,
   AppRole,
+  getAdminLandingPath,
   getRouteDetails,
+  hasAdminPageAccess,
   userNavigation,
 } from '@/src/config/navigation';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
@@ -25,15 +27,23 @@ export default function ProtectedAppLayout({
   const router = useRouter();
   const { profile, loading } = useSessionUser();
   const details = getRouteDetails(pathname, requiredRole);
-  const navItems = requiredRole === 'ADMIN' ? adminNavigation : userNavigation;
-  const hasAccess =
+  const navItems = requiredRole === 'ADMIN'
+    ? allowedAdminPages(profile?.admin_page_access).map(({ label, href }) => ({ label, href }))
+    : userNavigation;
+  const hasRoleAccess =
     profile?.role === requiredRole && profile.account_status === 'ACTIVE';
+  const hasAccess = hasRoleAccess && (requiredRole !== 'ADMIN' || hasAdminPageAccess(pathname, profile?.admin_page_access));
 
   useEffect(() => {
     if (loading || hasAccess) return;
 
+    if (profile?.account_status === 'ACTIVE' && profile.role === 'ADMIN') {
+      router.replace(getAdminLandingPath(profile.admin_page_access));
+      return;
+    }
+
     if (profile?.account_status === 'ACTIVE') {
-      router.replace(profile.role === 'ADMIN' ? '/admin/orders' : '/dashboard');
+      router.replace('/dashboard');
       return;
     }
 

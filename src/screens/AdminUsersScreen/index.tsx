@@ -6,6 +6,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -13,6 +14,7 @@ import {
   DialogTitle,
   IconButton,
   InputAdornment,
+  ListItemText,
   MenuItem,
   Stack,
   Typography,
@@ -23,7 +25,7 @@ import AppShell from '@/src/components/layout/AppShell';
 import StatusChip from '@/src/commons/StatusChip';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
 import { supabase } from '@/src/supabase/client';
-import { adminNavigation } from '@/src/config/navigation';
+import { adminNavigation, adminPageOptions, allAdminPageKeys, type AdminPageKey } from '@/src/config/navigation';
 import PageSkeleton from '@/src/components/feedback/PageSkeleton';
 import ScrollableResults from '@/src/components/feedback/ScrollableResults';
 import AppSnackbar from '@/src/commons/AppSnackBar';
@@ -60,6 +62,7 @@ type ProfileRow = {
   role: 'ADMIN' | 'USER';
   account_status: 'PENDING' | 'ACTIVE' | 'SUSPENDED';
   company_id: string | null;
+  admin_page_access: AdminPageKey[];
   created_at?: string;
   company?: CompanyRow | null;
 };
@@ -90,6 +93,7 @@ type UserDraft = {
   role: 'ADMIN' | 'USER';
   account_status: 'PENDING' | 'ACTIVE' | 'SUSPENDED';
   company_id: string;
+  admin_page_access: AdminPageKey[];
 };
 
 function formatDate(value?: string | null) {
@@ -161,6 +165,7 @@ export default function AdminUsersScreen() {
           role,
           account_status,
           company_id,
+          admin_page_access,
           created_at,
           company:companies(id, name)
         `)
@@ -191,6 +196,7 @@ export default function AdminUsersScreen() {
 
     const normalizedProfiles: ProfileRow[] = (profileData || []).map((row) => ({
       ...row,
+      admin_page_access: row.admin_page_access || [...allAdminPageKeys],
       company: singleRelation(row.company),
     }));
 
@@ -209,6 +215,7 @@ export default function AdminUsersScreen() {
         role: row.role,
         account_status: row.account_status,
         company_id: row.company_id || '',
+        admin_page_access: row.admin_page_access,
       };
     });
 
@@ -272,12 +279,18 @@ export default function AdminUsersScreen() {
       return;
     }
 
+    if (draft.role === 'ADMIN' && draft.admin_page_access.length === 0) {
+      showToast('Allow at least one admin page before saving.', 'error');
+      return;
+    }
+
     setSavingUserId(user.id);
 
     const payload = {
       role: draft.role,
       account_status: draft.account_status,
       company_id: draft.role === 'ADMIN' ? null : draft.company_id || null,
+      admin_page_access: draft.role === 'ADMIN' ? draft.admin_page_access : user.admin_page_access,
     };
 
     const { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
@@ -410,6 +423,7 @@ export default function AdminUsersScreen() {
     const createdProfile = payload.profile as Omit<ProfileRow, 'company'>;
     const createdUser: ProfileRow = {
       ...createdProfile,
+      admin_page_access: createdProfile.admin_page_access || [...allAdminPageKeys],
       company:
         createdProfile.role === 'ADMIN'
           ? null
@@ -422,6 +436,7 @@ export default function AdminUsersScreen() {
         role: createdUser.role,
         account_status: createdUser.account_status,
         company_id: createdUser.company_id || '',
+        admin_page_access: createdUser.admin_page_access,
       },
     }));
     setRequests((current) =>
@@ -486,12 +501,13 @@ export default function AdminUsersScreen() {
       const createdProfile = payload.profile as Omit<ProfileRow, 'company'>;
       const createdUser: ProfileRow = {
         ...createdProfile,
+        admin_page_access: createdProfile.admin_page_access || [...allAdminPageKeys],
         company: companies.find((company) => company.id === createdProfile.company_id) || null,
       };
       setUsers((current) => [createdUser, ...current]);
       setDrafts((current) => ({
         ...current,
-        [createdUser.id]: { role: 'USER', account_status: 'ACTIVE', company_id: createdUser.company_id || '' },
+        [createdUser.id]: { role: 'USER', account_status: 'ACTIVE', company_id: createdUser.company_id || '', admin_page_access: createdUser.admin_page_access },
       }));
       setRequests((current) => current.filter((item) => item.id !== request.id));
 
@@ -918,7 +934,7 @@ export default function AdminUsersScreen() {
                       </Stack>
                     </Stack>
 
-                    <EditGrid>
+                    <EditGrid data-admin-user={(draft?.role || user.role) === 'ADMIN' ? 'true' : 'false'}>
                       <StyledTextField
                         select
                         label="Role"
@@ -930,6 +946,7 @@ export default function AdminUsersScreen() {
                               ...prev[user.id],
                               role: e.target.value as 'ADMIN' | 'USER',
                               company_id: e.target.value === 'ADMIN' ? '' : prev[user.id]?.company_id || '',
+                              admin_page_access: prev[user.id]?.admin_page_access || user.admin_page_access || [...allAdminPageKeys],
                             },
                           }))
                         }
@@ -982,6 +999,50 @@ export default function AdminUsersScreen() {
                           </MenuItem>
                         ))}
                       </StyledTextField>
+
+                      {(draft?.role || user.role) === 'ADMIN' ? (
+                        <StyledTextField
+                          select
+                          label="Admin page access"
+                          value={draft?.admin_page_access || user.admin_page_access || [...allAdminPageKeys]}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            const selected = (typeof value === 'string' ? value.split(',') : value) as AdminPageKey[];
+                            if (selected.length === 0) {
+                              showToast('Allow at least one admin page.', 'error');
+                              return;
+                            }
+                            setDrafts((prev) => ({
+                              ...prev,
+                              [user.id]: {
+                                ...prev[user.id],
+                                role: 'ADMIN',
+                                admin_page_access: selected,
+                              },
+                            }));
+                          }}
+                          helperText={user.id === profile.id ? 'Your own page access is managed by another administrator.' : 'Choose which admin pages this account can open.'}
+                          disabled={user.id === profile.id}
+                          slotProps={{
+                            select: {
+                              multiple: true,
+                              renderValue: (selected) => (selected as AdminPageKey[])
+                                .map((key) => adminPageOptions.find((page) => page.key === key)?.label || key)
+                                .join(', '),
+                            },
+                          }}
+                        >
+                          {adminPageOptions.map((page) => {
+                            const selected = draft?.admin_page_access || user.admin_page_access || [...allAdminPageKeys];
+                            return (
+                              <MenuItem key={page.key} value={page.key}>
+                                <Checkbox size="small" checked={selected.includes(page.key)} />
+                                <ListItemText primary={page.label} />
+                              </MenuItem>
+                            );
+                          })}
+                        </StyledTextField>
+                      ) : null}
 
                       <Stack className="user-edit-actions" direction="row" spacing={1}>
                         <Button

@@ -1,5 +1,33 @@
 export type AppRole = 'ADMIN' | 'USER';
 
+export const adminPageOptions = [
+  { key: 'orders', label: 'Orders', href: '/admin/orders' },
+  { key: 'peptides', label: 'Peptides', href: '/admin/peptides' },
+  { key: 'companies', label: 'Companies', href: '/admin/companies' },
+  { key: 'users', label: 'Users', href: '/admin/users' },
+  { key: 'audit', label: 'Audit', href: '/admin/audit' },
+] as const;
+
+export type AdminPageKey = (typeof adminPageOptions)[number]['key'];
+export type AdminPagePath = (typeof adminPageOptions)[number]['href'];
+export const allAdminPageKeys = adminPageOptions.map((page) => page.key);
+
+export function allowedAdminPages(access?: readonly string[] | null) {
+  return access == null
+    ? adminPageOptions
+    : adminPageOptions.filter((page) => access.includes(page.key));
+}
+
+export function getAdminLandingPath(access?: readonly string[] | null): AdminPagePath {
+  return allowedAdminPages(access)[0]?.href || '/admin/orders';
+}
+
+export function hasAdminPageAccess(pathname: string, access?: readonly string[] | null) {
+  const page = adminPageOptions.find((item) => item.href === pathname);
+  if (!pathname.startsWith('/admin/')) return true;
+  return Boolean(page && allowedAdminPages(access).some((item) => item.key === page.key));
+}
+
 export type NavigationItem = {
   label: string;
   href: string;
@@ -10,13 +38,7 @@ type RouteDetails = {
   subtitle: string;
 };
 
-export const adminNavigation: NavigationItem[] = [
-  { label: 'Orders', href: '/admin/orders' },
-  { label: 'Peptides', href: '/admin/peptides' },
-  { label: 'Companies', href: '/admin/companies' },
-  { label: 'Users', href: '/admin/users' },
-  { label: 'Audit', href: '/admin/audit' },
-];
+export const adminNavigation: NavigationItem[] = adminPageOptions.map(({ label, href }) => ({ label, href }));
 
 export const userNavigation: NavigationItem[] = [
   { label: 'Order', href: '/dashboard' },

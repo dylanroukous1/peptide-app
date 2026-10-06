@@ -16,6 +16,7 @@ import {
   loadPreparedWorkspace,
   type PreparedWorkspace,
 } from '@/src/lib/workspace/loadWorkspace';
+import type { AdminPageKey } from '@/src/config/navigation';
 
 type AppRole = 'ADMIN' | 'USER';
 type AccountStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED';
@@ -28,6 +29,7 @@ export type SessionProfile = {
   role: AppRole;
   account_status: AccountStatus;
   company_id: string | null;
+  admin_page_access: AdminPageKey[];
 };
 
 type SessionContextValue = {
@@ -111,7 +113,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const request = (async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, first_name, last_name, role, account_status, company_id')
+        .select('id, email, first_name, last_name, role, account_status, company_id, admin_page_access')
         .eq('id', user.id)
         .single();
 
@@ -122,12 +124,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setProfile(null);
         profileRef.current = null;
       } else {
-        setProfile(data);
-        profileRef.current = data;
+        const nextProfile = { ...data, admin_page_access: data.admin_page_access || [] };
+        setProfile(nextProfile);
+        profileRef.current = nextProfile;
       }
 
       setLoading(false);
-      return error ? null : data;
+      return error ? null : profileRef.current;
     })().finally(() => {
       if (profileRequestRef.current?.userId === user.id) {
         profileRequestRef.current = null;

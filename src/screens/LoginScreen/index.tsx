@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
 import { supabase } from '@/src/supabase/client';
 import { type SessionProfile, useSessionUser } from '@/src/hooks/useSessionUser';
+import { getAdminLandingPath } from '@/src/config/navigation';
 import {
   ContentWrap,
   LoginBrandMark,
@@ -80,12 +81,20 @@ export default function LoginScreen() {
     setFlowState('preparing-workspace');
     setMessage('');
     setErrorStage(null);
-    const destination = nextProfile.role === 'ADMIN' ? '/admin/orders' : '/dashboard';
+    const destination = nextProfile.role === 'ADMIN' ? getAdminLandingPath(nextProfile.admin_page_access) : '/dashboard';
     router.prefetch(destination);
     try {
-      const destinationModule = nextProfile.role === 'ADMIN'
+      const destinationModule = destination === '/admin/orders'
         ? import('@/src/screens/AdminOrdersScreen')
-        : import('@/src/screens/UserDashboardScreen');
+        : destination === '/admin/peptides'
+          ? import('@/src/screens/AdminPeptidesScreen')
+          : destination === '/admin/companies'
+            ? import('@/src/screens/AdminCompaniesScreen')
+            : destination === '/admin/users'
+              ? import('@/src/screens/AdminUsersScreen')
+              : destination === '/admin/audit'
+                ? import('@/src/screens/AdminAuditScreen')
+                : import('@/src/screens/UserDashboardScreen');
       const [workspace] = await Promise.all([
         prepareWorkspace(nextProfile),
         destinationModule,

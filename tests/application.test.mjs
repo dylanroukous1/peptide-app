@@ -510,7 +510,7 @@ test('login synchronizes the shared profile and prepared workspace before one na
   assert.doesNotMatch(login, /Snackbar|Signing you in|success/i);
   assert.match(login, /Preparing your workspace…/);
   assert.match(login, /role="status"/);
-  assert.match(login, /nextProfile\.role === 'ADMIN' \? '\/admin\/orders' : '\/dashboard'/);
+  assert.match(login, /getAdminLandingPath\(nextProfile\.admin_page_access\)/);
   assert.equal((login.match(/router\.replace\(/g) || []).length, 1);
   assert.doesNotMatch(login, /router\.refresh\(\)/);
 });
@@ -994,6 +994,35 @@ test('account requests capture companies and approval safely provisions active u
   assert.doesNotMatch(passwordRoute, /console\.(log|error).*password/i);
   assert.match(audit, /ACCESS_REQUEST_APPROVED/);
   assert.match(audit, /ACCESS_REQUEST_REJECTED/);
+});
+
+test('admin page access is persisted, selectable, reflected in navigation, and enforced on direct routes', () => {
+  const migration = read('supabase/migrations/20261006100000_set_admin_page_access.sql');
+  const navigation = read('src/config/navigation.ts');
+  const users = read('src/screens/AdminUsersScreen/index.tsx');
+  const layout = read('src/components/layout/ProtectedAppLayout/index.tsx');
+  const session = read('src/hooks/useSessionUser.tsx');
+  const workspace = read('src/lib/workspace/loadWorkspace.ts');
+  const login = read('src/screens/LoginScreen/index.tsx');
+
+  assert.match(migration, /^begin;[\s\S]*commit;\s*$/);
+  assert.match(migration, /add column if not exists admin_page_access text\[\] not null default/);
+  for (const page of ['orders', 'peptides', 'companies', 'users', 'audit']) {
+    assert.ok(migration.includes(`'${page}'`));
+    assert.ok(navigation.includes(`key: '${page}'`));
+  }
+  assert.match(migration, /cardinality\(admin_page_access\) between 1 and 5/);
+  assert.match(users, /label="Admin page access"/);
+  assert.match(users, /multiple: true/);
+  assert.match(users, /admin_page_access: draft\.role === 'ADMIN' \? draft\.admin_page_access : user\.admin_page_access/);
+  assert.match(users, /Your own page access is managed by another administrator/);
+  const userStyles = read('src/screens/AdminUsersScreen/styles.ts');
+  assert.match(userStyles, /data-admin-user="true"[\s\S]*gridTemplateColumns: 'repeat\(4, minmax\(0, 1fr\)\)'[\s\S]*gridColumn: '1 \/ -1'/);
+  assert.match(layout, /allowedAdminPages\(profile\?\.admin_page_access\)/);
+  assert.match(layout, /hasAdminPageAccess\(pathname, profile\?\.admin_page_access\)/);
+  assert.match(session, /company_id, admin_page_access/);
+  assert.match(workspace, /getAdminLandingPath\(profile\.admin_page_access\)/);
+  assert.match(login, /getAdminLandingPath\(nextProfile\.admin_page_access\)/);
 });
 
 test('customer order builder normalizes leading zero quantities and provides copyable wire details', () => {
