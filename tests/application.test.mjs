@@ -705,6 +705,13 @@ test('admin orders use progressive disclosure and compact workflow controls', ()
   assert.match(styles, /theme\.breakpoints\.down\('md'\)[\s\S]*gridTemplateColumns: '1fr'/);
 });
 
+test('admin order detail Ship to field displays the customer company name', () => {
+  const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+
+  assert.match(adminOrders, /Ship to<\/Typography><Typography[^>]*>\{order\.company\?\.name \|\| 'Company unavailable'\}/);
+  assert.doesNotMatch(adminOrders, /Ship to<\/Typography><Typography[^>]*>\{\(order\.address\?\.label/);
+});
+
 test('void migration preserves lifecycle data and records explicit void metadata', () => {
   const sql = read(voidMigrationPath);
 
