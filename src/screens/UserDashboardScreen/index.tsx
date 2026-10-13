@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -69,7 +70,9 @@ const paymentInstructions = [
   ['Account', '2911819567'],
   ['Routing (ACH / direct deposit only)', '072000326'],
   ['Wire Routing', '021000021'],
+  ['Address', '1621 Central Ave, Cheyenne, WY 82001'],
 ] as const;
+const paymentAddressMapUrl = 'https://www.google.com/maps/search/1621+Central+Ave,+Cheyenne,+WY+82001?entry=gmail&source=g';
 function money(value: number | string | null | undefined) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2,
@@ -412,10 +415,16 @@ export default function UserDashboardScreen() {
                     </Button>
                   </Stack>
                   {paymentInstructions.map(([label, value]) => (
-                    <PaymentInstructionRow key={label}>
-                      <Box sx={{ minWidth: 0 }}>
+                    <PaymentInstructionRow key={label} data-payment-address={label === 'Address' ? 'true' : undefined}>
+                      <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                         <Typography variant="caption" color="text.secondary">{label}</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{value}</Typography>
+                        {label === 'Address' ? (
+                          <Typography component={Link} href={paymentAddressMapUrl} target="_blank" rel="noreferrer" variant="body2" sx={{ display: 'block', textAlign: 'left', fontWeight: 700, overflowWrap: 'anywhere', color: 'primary.main' }}>
+                            {value}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{value}</Typography>
+                        )}
                       </Box>
                       <IconButton type="button" aria-label={`Copy ${label}`} onClick={() => void copyPaymentDetail(value, label)}>
                         <ContentCopyIcon fontSize="small" />

@@ -707,9 +707,11 @@ test('admin orders use progressive disclosure and compact workflow controls', ()
 
 test('admin order detail Ship to field displays the customer company name', () => {
   const adminOrders = read('src/screens/AdminOrdersScreen/index.tsx');
+  const workspace = read('src/lib/workspace/loadWorkspace.ts');
 
-  assert.match(adminOrders, /Ship to<\/Typography><Typography[^>]*>\{order\.company\?\.name \|\| 'Company unavailable'\}/);
-  assert.doesNotMatch(adminOrders, /Ship to<\/Typography><Typography[^>]*>\{\(order\.address\?\.label/);
+  assert.match(adminOrders, /<Typography variant="caption" color="text\.secondary">Ship to<\/Typography>[\s\S]*order\.company\?\.name \|\| 'Company unavailable'[\s\S]*shipToAddress/);
+  assert.match(adminOrders, /order\.address\.line1[\s\S]*order\.address\.postal_code[\s\S]*order\.address\.country/);
+  assert.match(workspace, /address:company_addresses\(label, line1, line2, city, state, postal_code, country\)/);
 });
 
 test('void migration preserves lifecycle data and records explicit void metadata', () => {
@@ -1046,6 +1048,11 @@ test('customer order builder normalizes leading zero quantities and provides cop
   assert.match(builder, /\['Account', '2911819567'\]/);
   assert.match(builder, /\['Routing \(ACH \/ direct deposit only\)', '072000326'\]/);
   assert.match(builder, /\['Wire Routing', '021000021'\]/);
+  assert.match(builder, /\['Address', '1621 Central Ave, Cheyenne, WY 82001'\]/);
+  assert.match(builder, /paymentAddressMapUrl/);
+  assert.match(builder, /data-payment-address=\{label === 'Address' \? 'true' : undefined\}/);
+  assert.match(builder, /display: 'block', textAlign: 'left'/);
+  assert.match(styles, /data-payment-address="true"[\s\S]*alignItems: 'flex-start'/);
   assert.match(builder, /Copy all details/);
   assert.match(builder, /aria-label=\{`Copy \$\{label\}`\}/);
   assert.match(styles, /export const PaymentInstructionsCard/);

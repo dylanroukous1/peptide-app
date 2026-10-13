@@ -62,7 +62,15 @@ export type AdminOrder = {
     eta_date: string | null;
     peptide?: { name: string } | null;
   } | null;
-  address?: { label: string | null; line1: string; city: string } | null;
+  address?: {
+    label: string | null;
+    line1: string;
+    line2: string | null;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  } | null;
   shipment?: {
     id: string;
     tracking_number: string | null;
@@ -118,7 +126,7 @@ export async function loadAdminOrders(): Promise<AdminOrder[]> {
       company:companies(name),
       user:profiles!orders_user_id_fkey(first_name, last_name, email),
       batch:batches(batch_code, eta_date, peptide:peptides(name)),
-      address:company_addresses(label, line1, city),
+      address:company_addresses(label, line1, line2, city, state, postal_code, country),
       shipment:shipments(id, tracking_number, ship_date, estimated_delivery_date, carrier_name, shipment_notes)
     `)
     .order('submitted_at', { ascending: false });

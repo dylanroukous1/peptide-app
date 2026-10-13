@@ -97,6 +97,12 @@ export const PaymentInstructionRow = styled(Box)(({ theme }) => ({
   minHeight: 48,
   padding: theme.spacing(0.5, 0),
   borderTop: '1px solid #E2E8F0',
+  '&[data-payment-address="true"]': {
+    alignItems: 'flex-start',
+  },
+  '&[data-payment-address="true"] .MuiIconButton-root': {
+    alignSelf: 'flex-start',
+  },
 }));
 
 export const OrderItemsList = styled(Box)(({ theme }) => ({

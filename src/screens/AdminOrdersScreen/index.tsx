@@ -535,6 +535,14 @@ export default function AdminOrdersScreen() {
                 const discount = discountDrafts[order.id] || discountDraft(order);
                 const availableStatuses = nextStatuses[order.status] || [];
                 const selectedStatus = statusDrafts[order.id] || '';
+                const shipToAddress = order.address
+                  ? [
+                      order.address.line1,
+                      order.address.line2,
+                      [order.address.city, order.address.state, order.address.postal_code].filter(Boolean).join(', '),
+                      order.address.country,
+                    ].filter(Boolean).join(' · ')
+                  : 'Address unavailable';
                 return (
                   <OrderCard key={order.id}>
                     <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'flex-start' } }}>
@@ -577,7 +585,11 @@ export default function AdminOrdersScreen() {
                           <Typography component="h4" variant="subtitle1" sx={{ fontWeight: 800 }}>Order items</Typography>
                           <OrderSummaryGrid sx={{ mt: 1.25 }}>
                             <Box><Typography variant="caption" color="text.secondary">Inventory reference</Typography><Typography variant="body2" sx={{ fontWeight: 600 }}>{order.batch?.batch_code || 'Direct catalog order'}</Typography></Box>
-                            <Box><Typography variant="caption" color="text.secondary">Ship to</Typography><Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{order.company?.name || 'Company unavailable'}</Typography></Box>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="caption" color="text.secondary">Ship to</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{order.company?.name || 'Company unavailable'}</Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, overflowWrap: 'anywhere' }}>{shipToAddress}</Typography>
+                            </Box>
                           </OrderSummaryGrid>
                           <Stack spacing={1} sx={{ mt: 1.5 }}>
                             {order.items.map((item) => <Box key={item.id} sx={{ p: 1.5, border: '1px solid #E2E8F0', borderRadius: 2, backgroundColor: '#FFFFFF' }}><Typography variant="body2" sx={{ fontWeight: 800 }}>{item.peptide?.name || 'Product'}</Typography><Typography variant="body2" color="text.secondary">Requested {Number(item.requested_quantity).toLocaleString('en-US')} · Approved {item.approved_quantity == null ? 'Pending' : Number(item.approved_quantity).toLocaleString('en-US')} · Submitted {money(item.unit_price_at_submission)} · Final {item.unit_price_final == null ? 'Pending' : money(item.unit_price_final)} · Line {money(item.line_total)}</Typography></Box>)}
