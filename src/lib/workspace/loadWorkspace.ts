@@ -34,6 +34,10 @@ export type CustomerAddress = {
 export type AdminOrder = {
   id: string;
   order_number: string;
+  company_id: string;
+  user_id: string;
+  address_id: string;
+  batch_id: string | null;
   requested_quantity: number | null;
   approved_quantity: number | null;
   unit_price_at_submission: number | null;
@@ -47,6 +51,7 @@ export type AdminOrder = {
   submitted_at: string;
   items: Array<{
     id: string;
+    peptide_id: string;
     requested_quantity: number;
     approved_quantity: number | null;
     unit_price_at_submission: number;
@@ -79,6 +84,13 @@ export type AdminOrder = {
     carrier_name: string | null;
     shipment_notes: string | null;
   } | null;
+  admin_notes: Array<{
+    id: string;
+    note: string;
+    created_at: string;
+    author_id: string | null;
+    author?: { first_name: string; last_name: string; email: string | null } | null;
+  }>;
 };
 
 export type PreparedWorkspace =
@@ -102,6 +114,10 @@ export async function loadAdminOrders(): Promise<AdminOrder[]> {
     .select(`
       id,
       order_number,
+      company_id,
+      user_id,
+      address_id,
+      batch_id,
       requested_quantity,
       approved_quantity,
       unit_price_at_submission,
@@ -115,6 +131,7 @@ export async function loadAdminOrders(): Promise<AdminOrder[]> {
       submitted_at,
       items:order_items(
         id,
+        peptide_id,
         requested_quantity,
         approved_quantity,
         unit_price_at_submission,
@@ -127,7 +144,8 @@ export async function loadAdminOrders(): Promise<AdminOrder[]> {
       user:profiles!orders_user_id_fkey(first_name, last_name, email),
       batch:batches(batch_code, eta_date, peptide:peptides(name)),
       address:company_addresses(label, line1, line2, city, state, postal_code, country),
-      shipment:shipments(id, tracking_number, ship_date, estimated_delivery_date, carrier_name, shipment_notes)
+      shipment:shipments(id, tracking_number, ship_date, estimated_delivery_date, carrier_name, shipment_notes),
+      admin_notes:order_admin_notes(id, note, created_at, author_id, author:profiles!order_admin_notes_author_id_fkey(first_name, last_name, email))
     `)
     .order('submitted_at', { ascending: false });
 
@@ -147,6 +165,7 @@ export async function loadAdminOrders(): Promise<AdminOrder[]> {
       batch: batch ? { ...batch, peptide: singleRelation(batch.peptide) } : null,
       address: singleRelation(row.address),
       shipment: singleRelation(row.shipment),
+      admin_notes: (row.admin_notes || []).map((note) => ({ ...note, author: singleRelation(note.author) })),
     } as AdminOrder;
   });
 }

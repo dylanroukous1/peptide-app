@@ -69,6 +69,18 @@ export function formatAuditMessage(event: AuditEvent, references: AuditReference
     }
     return `${actor} submitted order ${orderNumber} for ${productName}.`;
   }
+  if (action === 'ADMIN_ORDER_CREATED') {
+    if (itemCount > 0 && totalQuantity > 0) {
+      return `${actor} created order ${orderNumber} containing ${itemCount} ${itemCount === 1 ? 'product' : 'products'} and ${totalQuantity.toLocaleString('en-US')} vials for ${money(totalPrice)}.`;
+    }
+    return `${actor} created order ${orderNumber}.`;
+  }
+  if (action === 'ORDER_DETAILS_UPDATED') {
+    return `${actor} updated the products, quantities, or shipping details for order ${orderNumber}.`;
+  }
+  if (action === 'ORDER_ADMIN_NOTE_ADDED') {
+    return `${actor} added a private note to order ${orderNumber}.`;
+  }
   if (action === 'ORDER_STATUS_UPDATED') {
     const before = humanizeAuditValue(event.before_json?.status || 'previous status');
     const after = humanizeAuditValue(event.after_json?.status || 'updated status');

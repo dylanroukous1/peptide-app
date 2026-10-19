@@ -18,6 +18,7 @@ const removeOrderMinimumsMigrationPath = 'supabase/migrations/20260925090000_rem
 const deleteAccessRequestMigrationPath = 'supabase/migrations/20260925091000_add_admin_access_request_deletion.sql';
 const accessRequestApprovalMigrationPath = 'supabase/migrations/20261005090000_access_request_company_approval.sql';
 const shortOrderNumberMigrationPath = 'supabase/migrations/20261005100000_use_short_sequential_order_numbers.sql';
+const adminOrderManagementMigrationPath = 'supabase/migrations/20261019100000_admin_order_create_edit_private_notes.sql';
 
 test('removed wishlist and batch management routes are not addressable', () => {
   assert.equal(existsSync(new URL('../app/wishlist/page.tsx', import.meta.url)), false);
@@ -260,6 +261,58 @@ test('customer history and admin review fetch and render nested order items with
   assert.match(workspaceLoader, /batch:batches/);
   assert.match(adminOrders, /admin_update_order_status/);
   assert.match(adminOrders, /Direct catalog order/);
+});
+
+test('admin order creation and edits use secured database-authoritative RPCs', () => {
+  const sql = read(adminOrderManagementMigrationPath);
+  const screen = read('src/screens/AdminOrdersScreen/index.tsx');
+  const dialog = read('src/screens/AdminOrdersScreen/OrderEditorDialog.tsx');
+
+  assert.match(sql, /create or replace function public\.admin_create_customer_order/);
+  assert.match(sql, /create or replace function public\.admin_edit_customer_order/);
+  assert.match(sql, /security definer[\s\S]*set search_path = public, pg_temp/);
+  assert.match(sql, /p\.role = 'ADMIN' and p\.account_status = 'ACTIVE'/);
+  assert.match(sql, /default_unit_price[\s\S]*p\.is_active = true/);
+  assert.match(sql, /shipping address does not belong to the selected company/);
+  assert.match(sql, /Products cannot be added to or removed from a legacy batch-linked order/);
+  assert.match(sql, /revoke all on function public\.admin_create_customer_order[\s\S]*grant execute on function public\.admin_create_customer_order/);
+  assert.match(dialog, /admin_create_customer_order/);
+  assert.match(dialog, /admin_edit_customer_order/);
+  assert.match(dialog, /p_items: itemPayload/);
+  assert.doesNotMatch(dialog, /p_unit_price|p_total_price|p_final_total/);
+  assert.match(screen, /Create order/);
+  assert.match(screen, /Edit order/);
+});
+
+test('private admin order notes are isolated from customer order history', () => {
+  const sql = read(adminOrderManagementMigrationPath);
+  const loader = read('src/lib/workspace/loadWorkspace.ts');
+  const userHistory = read('src/screens/UserOrdersScreen/index.tsx');
+  const screen = read('src/screens/AdminOrdersScreen/index.tsx');
+
+  assert.match(sql, /create table if not exists public\.order_admin_notes/);
+  assert.match(sql, /active admins read order admin notes/);
+  assert.match(sql, /create or replace function public\.admin_add_order_note/);
+  assert.match(sql, /revoke all on table public\.order_admin_notes from public, anon, authenticated/);
+  assert.match(loader, /admin_notes:order_admin_notes/);
+  assert.match(screen, /Private admin notes/);
+  assert.match(screen, /admin_add_order_note/);
+  assert.doesNotMatch(userHistory, /order_admin_notes|internal_notes/);
+});
+
+test('admin order edit flow preserves lifecycle, batch references, and readable audit events', () => {
+  const sql = read(adminOrderManagementMigrationPath);
+  const auditFormatter = read('src/lib/audit/formatAuditEvent.ts');
+
+  assert.match(sql, /v_before\.status not in \('SUBMITTED', 'UNDER_REVIEW'\)/);
+  assert.doesNotMatch(sql, /delete from public\.orders|drop table public\.orders/i);
+  assert.doesNotMatch(sql, /set batch_id\s*=/i);
+  assert.match(sql, /ORDER_DETAILS_UPDATED/);
+  assert.match(sql, /ADMIN_ORDER_CREATED/);
+  assert.match(sql, /ORDER_ADMIN_NOTE_ADDED/);
+  assert.match(auditFormatter, /created order \$\{orderNumber\}/);
+  assert.match(auditFormatter, /updated the products, quantities, or shipping details/);
+  assert.match(auditFormatter, /added a private note to order/);
 });
 
 test('admin approval updates every item while preserving legacy header values', () => {

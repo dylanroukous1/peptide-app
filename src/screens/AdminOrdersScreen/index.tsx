@@ -22,6 +22,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import PercentOutlinedIcon from '@mui/icons-material/PercentOutlined';
 import SyncAltOutlinedIcon from '@mui/icons-material/SyncAltOutlined';
+import AddIcon from '@mui/icons-material/Add';
 import AppShell from '@/src/components/layout/AppShell';
 import StatusChip from '@/src/commons/StatusChip';
 import { useSessionUser } from '@/src/hooks/useSessionUser';
@@ -36,6 +37,7 @@ import {
   type AdminOrder as OrderRow,
 } from '@/src/lib/workspace/loadWorkspace';
 import { useSessionStorageState } from '@/src/hooks/useSessionStorageState';
+import OrderEditorDialog from './OrderEditorDialog';
 import {
   ActionHeader,
   ActionIcon,
@@ -162,6 +164,10 @@ export default function AdminOrdersScreen() {
   const [deleteOrder, setDeleteOrder] = useState<OrderRow | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [orderEditorMode, setOrderEditorMode] = useState<'create' | 'edit' | null>(null);
+  const [editingOrder, setEditingOrder] = useState<OrderRow | null>(null);
+  const [adminNoteDrafts, setAdminNoteDrafts] = useState<Record<string, string>>({});
+  const [savingAdminNoteId, setSavingAdminNoteId] = useState<string | null>(null);
   const [shipmentDrafts, setShipmentDrafts] = useState<Record<string, ShipmentDraft>>(() =>
     Object.fromEntries((initialOrders || []).map((order) => [order.id, shipmentDraft(order)]))
   );
@@ -404,6 +410,40 @@ export default function AdminOrdersScreen() {
     showToast(remove ? `Discount removed from ${order.order_number}.` : `Discount applied to ${order.order_number}.`);
   };
 
+  const handleAddAdminNote = async (order: OrderRow) => {
+    const note = (adminNoteDrafts[order.id] || '').trim();
+    if (!note || savingAdminNoteId) return;
+    setSavingAdminNoteId(order.id);
+    const { data, error } = await supabase.rpc('admin_add_order_note', { p_order_id: order.id, p_note: note });
+    setSavingAdminNoteId(null);
+    if (error) {
+      showToast(error.message, 'error');
+      return;
+    }
+    const savedNote = data as OrderRow['admin_notes'][number];
+    setOrders((current) => current?.map((row) => row.id === order.id
+      ? { ...row, admin_notes: [...row.admin_notes, { ...savedNote, author: profile ? { first_name: profile.first_name, last_name: profile.last_name, email: profile.email } : null }] }
+      : row) ?? current);
+    setAdminNoteDrafts((current) => ({ ...current, [order.id]: '' }));
+    showToast('Private admin note added.');
+  };
+
+  const handleOrderSaved = async (orderId: string | null) => {
+    try {
+      const refreshed = await loadAdminOrders();
+      setOrders(refreshed);
+      setShipmentDrafts(Object.fromEntries(refreshed.map((order) => [order.id, shipmentDraft(order)])));
+      setDiscountDrafts(Object.fromEntries(refreshed.map((order) => [order.id, discountDraft(order)])));
+      if (orderId) setExpandedOrders((current) => new Set(current).add(orderId));
+      setOrderEditorMode(null);
+      setEditingOrder(null);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Order saved, but the list could not be refreshed.', 'error');
+      setOrderEditorMode(null);
+      setEditingOrder(null);
+    }
+  };
+
   if (sessionLoading || loading) {
     return <PageSkeleton label="Loading orders" />;
   }
@@ -474,12 +514,11 @@ export default function AdminOrdersScreen() {
         </StatsGrid>
 
         <SectionCard>
-          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>
-            Orders
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Search by order, company, peptide, inventory reference, or user email, then update status.
-          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1 }}>
+            <Box><Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Orders</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Search, create customer orders, and manage order fulfillment.</Typography></Box>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditingOrder(null); setOrderEditorMode('create'); }} sx={{ minHeight: 44, alignSelf: { xs: 'stretch', sm: 'center' } }}>Create order</Button>
+          </Stack>
 
           <FiltersGrid>
             <StyledTextField
@@ -582,7 +621,10 @@ export default function AdminOrdersScreen() {
                     <Collapse in={expanded} unmountOnExit>
                       <ExpandedContent id={`order-details-${order.id}`}>
                         <ManagementPanel>
-                          <Typography component="h4" variant="subtitle1" sx={{ fontWeight: 800 }}>Order items</Typography>
+                          <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1 }}>
+                            <Typography component="h4" variant="subtitle1" sx={{ fontWeight: 800 }}>Order items</Typography>
+                            {['SUBMITTED', 'UNDER_REVIEW'].includes(order.status) ? <Button variant="outlined" size="small" onClick={() => { setEditingOrder(order); setOrderEditorMode('edit'); }} sx={{ minHeight: 42 }}>Edit order</Button> : null}
+                          </Stack>
                           <OrderSummaryGrid sx={{ mt: 1.25 }}>
                             <Box><Typography variant="caption" color="text.secondary">Inventory reference</Typography><Typography variant="body2" sx={{ fontWeight: 600 }}>{order.batch?.batch_code || 'Direct catalog order'}</Typography></Box>
                             <Box sx={{ minWidth: 0 }}>
@@ -595,6 +637,21 @@ export default function AdminOrdersScreen() {
                             {order.items.map((item) => <Box key={item.id} sx={{ p: 1.5, border: '1px solid #E2E8F0', borderRadius: 2, backgroundColor: '#FFFFFF' }}><Typography variant="body2" sx={{ fontWeight: 800 }}>{item.peptide?.name || 'Product'}</Typography><Typography variant="body2" color="text.secondary">Requested {Number(item.requested_quantity).toLocaleString('en-US')} · Approved {item.approved_quantity == null ? 'Pending' : Number(item.approved_quantity).toLocaleString('en-US')} · Submitted {money(item.unit_price_at_submission)} · Final {item.unit_price_final == null ? 'Pending' : money(item.unit_price_final)} · Line {money(item.line_total)}</Typography></Box>)}
                           </Stack>
                           {order.user_notes ? <Box sx={{ mt: 1.5 }}><Typography variant="caption" color="text.secondary">Customer notes</Typography><Typography variant="body2" sx={{ mt: 0.25 }}>{order.user_notes}</Typography></Box> : null}
+                        </ManagementPanel>
+
+                        <ManagementPanel>
+                          <Typography component="h4" variant="subtitle1" sx={{ fontWeight: 800 }}>Private admin notes</Typography>
+                          <Typography variant="caption" color="text.secondary">Visible only to active administrators.</Typography>
+                          {order.admin_notes.length ? <Stack spacing={1} sx={{ mt: 1.25 }}>
+                            {order.admin_notes.map((note) => <Box key={note.id} sx={{ p: 1.25, borderRadius: 2, backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+                              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{note.note}</Typography>
+                              <Typography variant="caption" color="text.secondary">{[note.author?.first_name, note.author?.last_name].filter(Boolean).join(' ') || note.author?.email || 'Administrator'} · {formatDate(note.created_at)}</Typography>
+                            </Box>)}
+                          </Stack> : <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No private notes yet.</Typography>}
+                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1.5, alignItems: 'stretch' }}>
+                            <StyledTextField label="Add a private note" multiline minRows={2} value={adminNoteDrafts[order.id] || ''} onChange={(event) => setAdminNoteDrafts((current) => ({ ...current, [order.id]: event.target.value }))} slotProps={{ htmlInput: { maxLength: 5000 } }} />
+                            <Button variant="outlined" onClick={() => void handleAddAdminNote(order)} disabled={!adminNoteDrafts[order.id]?.trim() || savingAdminNoteId === order.id} sx={{ minHeight: 44, alignSelf: { xs: 'stretch', sm: 'flex-end' }, whiteSpace: 'nowrap' }}>{savingAdminNoteId === order.id ? <CircularProgress size={18} /> : 'Add note'}</Button>
+                          </Stack>
                         </ManagementPanel>
 
                         <ManagementGrid>
@@ -696,6 +753,14 @@ export default function AdminOrdersScreen() {
           </Button>
         </DialogActions>
       </Dialog>
+      {orderEditorMode ? <OrderEditorDialog
+        open={Boolean(orderEditorMode)}
+        mode={orderEditorMode}
+        order={editingOrder}
+        onClose={() => { setOrderEditorMode(null); setEditingOrder(null); }}
+        onSaved={handleOrderSaved}
+        showToast={showToast}
+      /> : null}
       <AppSnackbar {...toast} onClose={closeToast} />
     </AppShell>
   );
